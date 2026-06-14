@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+tasks:
+  install:
+    desc: Install all dependencies with uv
+    cmds:
+      - uv sync --all-groups
+
+  # ----- Quality: lint / format / test -----
+  lint:
+    desc: Run ruff linter
+    cmds:
+      - uv run ruff check .
+
+  format:
+    desc: Run ruff formatter (modifies files)
+    cmds:
+      - uv run ruff format .
+
+  format:check:
+    desc: Check formatting without modifying
+    cmds:
+      - uv run ruff format --check .
+
+  test:
+    desc: Run all tests
+    cmds:
+      - uv run pytest
+
+  test:unit:
+    desc: Run unit tests only
+    cmds:
+      - uv run pytest tests/unit
+
+  test:integration:
+    desc: Run integration tests only
+    cmds:
+      - uv run pytest tests/integration
+
+  test:coverage:
+    desc: Run tests with coverage report
+    cmds:
+      - uv run pytest --cov --cov-report=term-missing
+
+  ci:
+    desc: Run full CI check locally (mirrors GitHub Actions)
+    cmds:
+      - task: lint
+      - task: format:check
+      - task: test:unit
