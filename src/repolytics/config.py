@@ -1,5 +1,4 @@
-"""
-Application configuration via Pydantic Settings.
+"""Application configuration via Pydantic Settings.
 
 See `.env.example` for the full set of variables.
 """
@@ -33,8 +32,7 @@ class Settings(BaseSettings):
 
     @property
     def target_repos(self) -> list[str]:
-        """
-        Target repositories as a clean `owner/name` list.
+        """Target repositories as a clean `owner/name` list.
 
         Parses the comma-separated `GITHUB_TARGET_REPOS` value.
         """
