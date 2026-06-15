@@ -21,14 +21,16 @@ def test_write_parquet_roundtrips_via_duckdb(
 
     assert out.exists()
     rows = duckdb_conn.execute(
-        "SELECT data, _loaded_at FROM read_parquet(?) ORDER BY data", [str(out)]
+        "SELECT data, _loaded_at IS NOT NULL AS has_loaded_at "
+        "FROM read_parquet(?) ORDER BY data",
+        [str(out)],
     ).fetchall()
 
     assert len(rows) == 2
     loaded = [json.loads(data) for data, _ in rows]
     assert {record["id"] for record in loaded} == {1, 2}
     assert loaded[0]["owner"]["login"] == "a"  # nested structure preserved
-    assert all(loaded_at is not None for _, loaded_at in rows)
+    assert all(has_loaded_at for _, has_loaded_at in rows)
 
 
 def test_write_parquet_columns(tmp_path: Path) -> None:
