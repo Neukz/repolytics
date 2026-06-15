@@ -46,6 +46,23 @@ def test_write_parquet_empty_writes_schema_only(tmp_path: Path) -> None:
     assert frame.height == 0
 
 
+def test_write_parquet_metadata_columns(tmp_path: Path) -> None:
+    records = [{"sha": "a"}, {"sha": "b"}]
+    out = write_parquet(
+        records, tmp_path / "commits.parquet", metadata={"_repo": "o/r"}
+    )
+    frame = pl.read_parquet(out)
+    assert frame.columns == ["data", "_loaded_at", "_repo"]
+    assert frame["_repo"].to_list() == ["o/r", "o/r"]
+
+
+def test_write_parquet_empty_keeps_metadata_columns(tmp_path: Path) -> None:
+    out = write_parquet([], tmp_path / "empty.parquet", metadata={"_repo": "o/r"})
+    frame = pl.read_parquet(out)
+    assert frame.columns == ["data", "_loaded_at", "_repo"]
+    assert frame.height == 0
+
+
 def test_write_parquet_creates_parent_dirs(tmp_path: Path) -> None:
     out = write_parquet([{"id": 1}], tmp_path / "a" / "b" / "c.parquet")
     assert out.exists()
@@ -58,3 +75,10 @@ def test_partition_path_formats_date() -> None:
 
     from_string = partition_path("data/raw", "github", "commits", "2024-01-02")
     assert from_string == Path("data/raw/github/commits/2024-01-02.parquet")
+
+
+def test_partition_path_with_entity_slugifies_slash() -> None:
+    path = partition_path(
+        "data/raw", "github", "commits", "2024-01-02", entity="encode/httpx"
+    )
+    assert path == Path("data/raw/github/commits/encode__httpx/2024-01-02.parquet")
