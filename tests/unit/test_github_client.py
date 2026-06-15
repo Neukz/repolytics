@@ -7,7 +7,9 @@ from datetime import UTC, datetime
 import httpx
 import pytest
 
+from repolytics.ingestion._http import RETRYABLE_STATUSES
 from repolytics.ingestion.github_client import GitHubClient, _to_iso
+from tests.unit._clients import mock_client
 
 # Absolute next-page URL used to drive pagination in tests.
 NEXT_URL = "https://api.github.com/x?page=2"
@@ -17,25 +19,13 @@ NEXT_LINK = f'<{NEXT_URL}>; rel="next"'
 def make_client(
     handler: Callable[[httpx.Request], httpx.Response], **kwargs: object
 ) -> tuple[GitHubClient, list[float]]:
-    """Build a client backed by a `MockTransport` and a spy `sleep`.
-
-    Returns the client and the list that records every sleep duration, so tests
-    can assert on retry/rate-limit waits without ever blocking.
-    """
-    sleeps: list[float] = []
-    client = GitHubClient(
-        "test-token",
-        transport=httpx.MockTransport(handler),
-        sleep=sleeps.append,
-        backoff_base=0.0,
-        **kwargs,
-    )
-    return client, sleeps
+    """Build a `GitHubClient` over a `MockTransport` with a spy `sleep`."""
+    return mock_client(GitHubClient, handler, "test-token", **kwargs)
 
 
-def test_to_iso_appends_z_for_naive_and_aware() -> None:
-    assert _to_iso(datetime(2024, 1, 1)) == "2024-01-01T00:00:00Z"
-    assert _to_iso(datetime(2024, 1, 1, tzinfo=UTC)) == "2024-01-01T00:00:00Z"
+@pytest.mark.parametrize("dt", [datetime(2024, 1, 1), datetime(2024, 1, 1, tzinfo=UTC)])
+def test_to_iso_appends_z(dt: datetime) -> None:
+    assert _to_iso(dt) == "2024-01-01T00:00:00Z"
 
 
 def test_paginates_following_next_link() -> None:
@@ -77,23 +67,24 @@ def test_sleeps_when_rate_limit_low() -> None:
     assert sleeps[0] > 0
 
 
-def test_retries_then_succeeds() -> None:
-    statuses = [502, 502, 200]
+@pytest.mark.parametrize("status", sorted(RETRYABLE_STATUSES))
+def test_retryable_status_retries_then_succeeds(status: int) -> None:
+    statuses = [status, 200]
     calls: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        status = statuses[len(calls)]
+        current = statuses[len(calls)]
         calls.append(request)
-        if status == 200:
+        if current == 200:
             return httpx.Response(200, json={"id": 1})
-        return httpx.Response(status)
+        return httpx.Response(current)
 
     client, sleeps = make_client(handler)
     result = client.get_repository("o", "r")
 
     assert result == {"id": 1}
-    assert len(calls) == 3
-    assert len(sleeps) == 2
+    assert len(calls) == 2  # one failure, one retry
+    assert len(sleeps) == 1
 
 
 def test_raises_after_max_retries() -> None:
@@ -107,12 +98,13 @@ def test_raises_after_max_retries() -> None:
     assert len(sleeps) == 3
 
 
-def test_404_raises_without_retry() -> None:
+@pytest.mark.parametrize("status", [400, 401, 403, 404])
+def test_non_retryable_status_raises_without_retry(status: int) -> None:
     calls: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         calls.append(request)
-        return httpx.Response(404)
+        return httpx.Response(status)
 
     client, sleeps = make_client(handler)
     with pytest.raises(httpx.HTTPStatusError):
