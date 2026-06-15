@@ -1,0 +1,45 @@
+version: 2
+
+models:
+  - name: dim_dates
+    description: Calendar dimension, one row per day (2020–2030), generated in SQL.
+    columns:
+      - name: date_key
+        description: Surrogate date key (YYYYMMDD integer).
+        data_tests: [not_null, unique]
+      - name: full_date
+        data_tests: [not_null, unique]
+
+  - name: dim_contributors
+    description: Type 1 contributor profiles aggregated across commits and pull requests.
+    columns:
+      - name: contributor_key
+        data_tests: [not_null, unique]
+      - name: username
+        data_tests: [not_null, unique]
+
+  - name: dim_repositories
+    description: SCD Type 2 repository dimension (one row per version) built on snap_repositories.
+    columns:
+      - name: repository_key
+        description: Surrogate key, hash of repository_id + the snapshot version timestamp.
+        data_tests: [not_null, unique]
+      - name: repository_id
+        data_tests: [not_null]
+      - name: is_current
+        data_tests: [not_null]
+    data_tests:
+      - dbt_utils.mutually_exclusive_ranges:
+          arguments:
+            lower_bound_column: valid_from
+            upper_bound_column: valid_to
+            partition_by: repository_id
+            gaps: not_allowed
+
+  - name: dim_labels
+    description: Type 1 dimension of distinct issue/PR labels across all projects.
+    columns:
+      - name: label_key
+        data_tests: [not_null, unique]
+      - name: label_name
+        data_tests: [not_null, unique]
