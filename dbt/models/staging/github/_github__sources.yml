@@ -1,0 +1,21 @@
+version: 2
+
+sources:
+  - name: github
+    description: Raw GitHub API responses, landed as a JSON `data` blob per record.
+    schema: raw
+    loaded_at_field: _loaded_at
+    freshness:
+      warn_after: {count: 12, period: hour}
+      error_after: {count: 24, period: hour}
+    tables:
+      - name: repositories
+        description: One row per repository snapshot.
+      - name: commits
+        description: One row per commit; `_repo` carries the source repository.
+      - name: pull_requests
+        description: One row per pull request; `_repo` carries the source repository.
+      - name: issues
+        description: One row per issue (includes PRs upstream; staging filters them).
+      - name: releases
+        description: One row per release; `_repo` carries the source repository.

@@ -1,0 +1,5 @@
+{
+  "data": {"last_day": 12345, "last_week": 80000, "last_month": 350000},
+  "package": "polars",
+  "type": "recent_downloads"
+}

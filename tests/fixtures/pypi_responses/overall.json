@@ -1,0 +1,8 @@
+{
+  "data": [
+    {"category": "without_mirrors", "date": "2024-01-01", "downloads": 12000},
+    {"category": "without_mirrors", "date": "2024-01-02", "downloads": 13500}
+  ],
+  "package": "polars",
+  "type": "overall_downloads"
+}

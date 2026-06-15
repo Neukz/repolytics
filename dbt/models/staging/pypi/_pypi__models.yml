@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: stg_pypi__downloads
+    description: One cleaned row per package/category/day download count.
+    columns:
+      - name: package
+        data_tests: [not_null]
+      - name: download_date
+        data_tests: [not_null]
+      - name: download_count
+        data_tests: [not_null]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [package, category, download_date]
