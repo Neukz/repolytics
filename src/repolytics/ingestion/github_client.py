@@ -1,10 +1,9 @@
 """GitHub REST API client.
 
-Methods return raw JSON exactly as received.
-Handles authentication, pagination, rate limiting, and retries with exponential backoff.
+Methods return raw JSON exactly as received. Handles authentication,
+pagination, rate limiting, and retries with exponential backoff.
 """
 
-import random
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -12,9 +11,7 @@ from datetime import UTC, datetime
 import httpx
 
 from repolytics.config import get_settings
-
-# HTTP statuses worth retrying.
-RETRYABLE_STATUSES = frozenset({429, 500, 502, 503})
+from repolytics.ingestion._http import RETRYABLE_STATUSES, retry_delay
 
 
 def _to_iso(dt: datetime) -> str:
@@ -167,21 +164,11 @@ class GitHubClient:
         for attempt in range(self._max_retries):
             if response.status_code not in RETRYABLE_STATUSES:
                 break
-            self._sleep(self._retry_delay(response, attempt))
+            self._sleep(retry_delay(response, attempt, self._backoff_base))
             response = self._client.request(method, url, params=params)
         response.raise_for_status()
         self._guard_rate_limit(response)
         return response
-
-    def _retry_delay(self, response: httpx.Response, attempt: int) -> float:
-        """Seconds to wait before a retry: `Retry-After` if present, else backoff."""
-        retry_after = response.headers.get("Retry-After")
-        if retry_after is not None:
-            try:
-                return float(retry_after)
-            except ValueError:
-                pass
-        return self._backoff_base * 2**attempt + random.uniform(0, self._backoff_base)
 
     def _guard_rate_limit(self, response: httpx.Response) -> None:
         """Sleep until the rate-limit window resets when remaining calls run low."""
