@@ -1,0 +1,23 @@
+[
+  {
+    "number": 100,
+    "title": "Crash on empty body",
+    "state": "closed",
+    "user": {"login": "carol", "id": 3},
+    "created_at": "2024-01-01T00:00:00Z",
+    "closed_at": "2024-01-05T00:00:00Z",
+    "comments": 4,
+    "labels": [{"id": 1, "name": "bug", "color": "d73a4a"}]
+  },
+  {
+    "number": 101,
+    "title": "Add feature (this is actually a PR)",
+    "state": "open",
+    "user": {"login": "dave", "id": 4},
+    "created_at": "2024-01-02T00:00:00Z",
+    "closed_at": null,
+    "comments": 0,
+    "labels": [],
+    "pull_request": {"url": "https://api.github.com/repos/encode/httpx/pulls/101"}
+  }
+]

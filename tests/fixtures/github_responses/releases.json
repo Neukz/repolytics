@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "tag_name": "0.27.0",
+    "name": "Version 0.27.0",
+    "published_at": "2024-01-01T00:00:00Z",
+    "assets": []
+  },
+  {
+    "id": 2,
+    "tag_name": "0.26.0",
+    "name": "Version 0.26.0",
+    "published_at": "2023-12-01T00:00:00Z",
+    "assets": []
+  }
+]

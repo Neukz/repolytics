@@ -1,0 +1,12 @@
+repolytics:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', '../data/warehouse/repolytics.duckdb') }}"
+      threads: 4
+    ci:
+      # Ephemeral in-memory DB: enough for `dbt compile` / parsing, no data needed.
+      type: duckdb
+      path: ":memory:"
+      threads: 4

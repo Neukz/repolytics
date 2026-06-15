@@ -50,3 +50,43 @@ tasks:
       - task: lint
       - task: format:check
       - task: test:unit
+      - task: test:integration
+      - task: dbt:deps
+      - task: dbt:compile
+
+  # ----- Loading -----
+  load:raw:
+    desc: Load landed Parquet into the DuckDB raw schema
+    cmds:
+      - uv run python -c "from repolytics.loading.raw_loader import load_all; print(load_all())"
+
+  # ----- dbt -----
+  dbt:deps:
+    desc: Install dbt packages
+    dir: dbt
+    cmds:
+      - uv run --group dbt dbt deps
+
+  dbt:compile:
+    desc: Compile dbt models (validate SQL without executing)
+    dir: dbt
+    cmds:
+      - uv run --group dbt dbt compile --target ci
+
+  dbt:run:
+    desc: Run dbt models
+    dir: dbt
+    cmds:
+      - uv run --group dbt dbt run
+
+  dbt:test:
+    desc: Run dbt tests
+    dir: dbt
+    cmds:
+      - uv run --group dbt dbt test
+
+  dbt:build:
+    desc: Run dbt models and tests
+    dir: dbt
+    cmds:
+      - uv run --group dbt dbt build

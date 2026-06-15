@@ -1,0 +1,55 @@
+version: 2
+
+models:
+  - name: stg_github__repositories
+    description: One cleaned row per repository snapshot.
+    columns:
+      - name: repository_id
+        description: Natural key from the GitHub API.
+        data_tests: [not_null, unique]
+      - name: repository_name
+        data_tests: [not_null]
+
+  - name: stg_github__commits
+    description: One cleaned row per non-merge commit.
+    columns:
+      - name: commit_sha
+        data_tests: [not_null]
+      - name: repository
+        data_tests: [not_null]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [repository, commit_sha]
+
+  - name: stg_github__pull_requests
+    description: One cleaned row per pull request.
+    columns:
+      - name: pr_number
+        data_tests: [not_null]
+      - name: repository
+        data_tests: [not_null]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [repository, pr_number]
+
+  - name: stg_github__issues
+    description: One cleaned row per issue (pull requests excluded).
+    columns:
+      - name: issue_number
+        data_tests: [not_null]
+      - name: repository
+        data_tests: [not_null]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [repository, issue_number]
+
+  - name: stg_github__releases
+    description: One cleaned row per release.
+    columns:
+      - name: release_id
+        data_tests: [not_null, unique]
+      - name: repository
+        data_tests: [not_null]

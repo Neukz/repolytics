@@ -1,0 +1,20 @@
+[
+  {
+    "sha": "abc123",
+    "commit": {
+      "author": {"name": "Alice", "email": "alice@example.com", "date": "2024-01-02T10:00:00Z"},
+      "message": "fix: handle empty response"
+    },
+    "author": {"login": "alice", "id": 1},
+    "stats": {"additions": 10, "deletions": 2, "total": 12}
+  },
+  {
+    "sha": "def456",
+    "commit": {
+      "author": {"name": "Bob", "email": "bob@example.com", "date": "2024-01-03T12:00:00Z"},
+      "message": "feat: add retry support"
+    },
+    "author": {"login": "bob", "id": 2},
+    "stats": {"additions": 30, "deletions": 5, "total": 35}
+  }
+]

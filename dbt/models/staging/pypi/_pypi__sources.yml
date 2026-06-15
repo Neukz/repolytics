@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: pypi
+    description: Raw PyPI Stats responses; one row per package/day/category.
+    schema: raw
+    loaded_at_field: _loaded_at
+    freshness:
+      warn_after: {count: 12, period: hour}
+      error_after: {count: 48, period: hour}
+    tables:
+      - name: downloads
+        description: Daily download counts; `_package` carries the source package.
