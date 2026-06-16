@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: dim_dates
-    description: Calendar dimension, one row per day (2020–2030), generated in SQL.
+    description: Calendar dimension, one row per day (2020-2030), generated in SQL.
     columns:
       - name: date_key
         description: Surrogate date key (YYYYMMDD integer).
@@ -43,3 +43,162 @@ models:
         data_tests: [not_null, unique]
       - name: label_name
         data_tests: [not_null, unique]
+
+  - name: fct_commits
+    description: One row per commit. Repository resolved via the SCD2 half-open date range.
+    columns:
+      - name: commit_key
+        description: Surrogate key, hash of repository + commit_sha.
+        data_tests: [not_null, unique]
+      - name: repository_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_repositories')
+                field: repository_key
+      - name: contributor_key
+        description: Nullable - commits whose author has no GitHub login stay unattributed.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_contributors')
+                field: contributor_key
+      - name: date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_dates')
+                field: date_key
+      - name: lines_added
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: lines_deleted
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+
+  - name: fct_pull_requests
+    description: One row per pull request. Repository resolved via the SCD2 half-open range on the PR open date.
+    columns:
+      - name: pr_key
+        description: Surrogate key, hash of repository + pr_number.
+        data_tests: [not_null, unique]
+      - name: repository_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_repositories')
+                field: repository_key
+      - name: author_key
+        description: Nullable FK to dim_contributors.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_contributors')
+                field: contributor_key
+      - name: opened_date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_dates')
+                field: date_key
+      - name: merged_date_key
+        description: Nullable - only set for merged PRs.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_dates')
+                field: date_key
+      - name: review_count
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+
+  - name: fct_issues
+    description: One row per issue. Repository resolved via the SCD2 half-open range.
+    columns:
+      - name: issue_key
+        description: Surrogate key, hash of repository + issue_number.
+        data_tests: [not_null, unique]
+      - name: repository_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_repositories')
+                field: repository_key
+      - name: author_key
+        description: Nullable FK to dim_contributors.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_contributors')
+                field: contributor_key
+      - name: opened_date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_dates')
+                field: date_key
+      - name: closed_date_key
+        description: Nullable - only set for closed issues.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_dates')
+                field: date_key
+      - name: comment_count
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+
+  - name: bridge_issue_labels
+    description: Bridge for the issue<->label many-to-many. Grain - one row per issue/label.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [issue_key, label_key]
+    columns:
+      - name: issue_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_issues')
+                field: issue_key
+      - name: label_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_labels')
+                field: label_key
+
+  - name: fct_daily_downloads
+    description: One row per package per day (PyPI 'without_mirrors' downloads).
+    columns:
+      - name: download_key
+        description: Surrogate key, hash of package + download_date.
+        data_tests: [not_null, unique]
+      - name: date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_dates')
+                field: date_key
+      - name: download_count
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
