@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: int_contributor_activity
+    description: >
+      Tidy contributor activity event stream at username grain - one row per discrete
+      event (commit, pr_opened, pr_merged, issue_opened, issue_closed). Reusable
+      building block for monthly aggregation and PR/health metrics.
+    columns:
+      - name: username
+        description: GitHub login of the actor.
+        data_tests: [not_null]
+      - name: event_date
+        description: Date the activity occurred.
+        data_tests: [not_null]
+      - name: event_month
+        description: First day of the month of event_date.
+        data_tests: [not_null]
+      - name: activity_type
+        description: One of commit, pr_opened, pr_merged, issue_opened, issue_closed.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - commit
+                  - pr_opened
+                  - pr_merged
+                  - issue_opened
+                  - issue_closed

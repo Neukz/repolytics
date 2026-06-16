@@ -2,9 +2,23 @@
 -- half-open date range (event_date >= valid_from AND < valid_to) so each commit maps
 -- to the repository version that was current when it landed; to dim_contributors on
 -- author login; and to dim_dates via an inline YYYYMMDD key.
+-- Incremental (delete+insert on commit_key): each run only processes commits at or
+-- after the latest committed_at already loaded; the unique key keeps it idempotent.
+
+{{
+    config(
+        materialized='incremental',
+        unique_key='commit_key',
+        incremental_strategy='delete+insert',
+        on_schema_change='sync_all_columns',
+    )
+}}
 
 with commits as (
     select * from {{ ref('stg_github__commits') }}
+    {% if is_incremental() %}
+    where committed_at >= (select max(committed_at) from {{ this }})
+    {% endif %}
 )
 
 select
