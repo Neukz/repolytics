@@ -185,12 +185,18 @@ models:
                 field: label_key
 
   - name: fct_daily_downloads
-    description: One row per package per day (PyPI 'without_mirrors' downloads).
+    description: >
+      One row per package per day (PyPI 'without_mirrors' downloads). `package` is a
+      degenerate dimension - no package->repository mapping exists yet. Incremental
+      (delete+insert on download_key).
     columns:
       - name: download_key
         description: Surrogate key, hash of package + download_date.
         data_tests: [not_null, unique]
+      - name: package
+        description: PyPI package name (degenerate dimension).
       - name: date_key
+        description: FK to dim_dates (download day, YYYYMMDD).
         data_tests:
           - not_null
           - relationships:
@@ -198,6 +204,62 @@ models:
                 to: ref('dim_dates')
                 field: date_key
       - name: download_count
+        description: Downloads recorded for the package that day.
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+
+  - name: fct_contributor_activity_monthly
+    description: >
+      Aggregate fact, one row per contributor per month, pivoting the activity event
+      stream into commit / PR / issue counts.
+    columns:
+      - name: activity_key
+        description: Surrogate key, hash of contributor_key + event_month.
+        data_tests: [not_null, unique]
+      - name: contributor_key
+        description: FK to dim_contributors.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_contributors')
+                field: contributor_key
+      - name: month_date_key
+        description: FK to dim_dates (first day of the activity month, YYYYMMDD).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_dates')
+                field: date_key
+      - name: commits
+        description: Commits authored that month.
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: prs_opened
+        description: Pull requests opened that month.
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: prs_merged
+        description: Pull requests merged that month.
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: issues_opened
+        description: Issues opened that month.
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: issues_closed
+        description: Issues closed that month.
         data_tests:
           - dbt_utils.expression_is_true:
               arguments:

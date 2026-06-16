@@ -1,5 +1,6 @@
 -- Type 1 contributor dimension: one row per GitHub login, aggregated across the
--- commit and pull-request staging models. Rebuilt in full each run.
+-- commit, pull request, and issue staging models. Rebuilt in full each run.
+-- Stats are commit/PR-based; issue-only authors appear with zeroed counts.
 
 with commits as (
     select
@@ -22,6 +23,10 @@ contributors as (
     select username from commits
     union
     select username from prs
+    union
+    select author_login as username
+    from {{ ref('stg_github__issues') }}
+    where author_login is not null
 ),
 
 commit_stats as (

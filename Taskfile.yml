@@ -90,3 +90,10 @@ tasks:
     dir: dbt
     cmds:
       - uv run --group dbt dbt build
+
+  dbt:docs:
+    desc: Generate and serve dbt documentation
+    dir: dbt
+    cmds:
+      - uv run --group dbt dbt docs generate
+      - uv run --group dbt dbt docs serve
