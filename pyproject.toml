@@ -5,9 +5,8 @@ description = "End-to-end ELT pipeline for open source project analytics (GitHub
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "dlt[duckdb]>=1.28.0",
     "duckdb>=1.5.3",
-    "httpx>=0.28.1",
-    "polars>=1.41.2",
     "pydantic-settings>=2.14.1",
 ]
 

@@ -1,26 +1,16 @@
-with source as (
-    select data::json as d, _repo, _loaded_at
-    from {{ source('github', 'pull_requests') }}
+-- Structural cleaning over dlt's normalized `pull_requests` table. Labels live in
+-- the `pull_requests__labels` child table (see stg_github__pr_labels).
+
+with pull_requests as (
+    select * from {{ source('github', 'pull_requests') }}
 )
 
 select
     _repo as repository,
-    (d ->> '$.number')::bigint as pr_number,
-    d ->> '$.user.login' as author_login,
-    d ->> '$.state' as state,
-    (d ->> '$.created_at')::timestamp as created_at,
-    (d ->> '$.merged_at')::timestamp as merged_at,
-    (d ->> '$.additions')::bigint as additions,
-    (d ->> '$.deletions')::bigint as deletions,
-    (d ->> '$.review_comments')::bigint as review_comments,
-    (d ->> '$.comments')::bigint as comment_count,
-    case
-        when (d ->> '$.merged_at') is not null then datediff(
-            'hour',
-            (d ->> '$.created_at')::timestamp,
-            (d ->> '$.merged_at')::timestamp
-        )
-    end as time_to_merge_hours,
-    d -> '$.labels' as labels,
+    number as pr_number,
+    user__login as author_login,
+    state,
+    created_at,
+    merged_at,
     _loaded_at
-from source
+from pull_requests

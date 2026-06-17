@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: github
-    description: Raw GitHub API responses, landed as a JSON `data` blob per record.
+    description: GitHub API data loaded and normalized by dlt into typed tables.
     schema: raw
     loaded_at_field: _loaded_at
     freshness:
@@ -10,12 +10,24 @@ sources:
       error_after: {count: 24, period: hour}
     tables:
       - name: repositories
-        description: One row per repository snapshot.
+        description: One row per repository (current snapshot).
+      - name: repositories__topics
+        description: dlt child table; one row per repository topic.
+        freshness: null  # child table has no _loaded_at
       - name: commits
         description: One row per commit; `_repo` carries the source repository.
+      - name: commits__parents
+        description: dlt child table; one row per commit parent (merge detection).
+        freshness: null
       - name: pull_requests
         description: One row per pull request; `_repo` carries the source repository.
+      - name: pull_requests__labels
+        description: dlt child table; one row per pull-request label.
+        freshness: null
       - name: issues
         description: One row per issue (includes PRs upstream; staging filters them).
+      - name: issues__labels
+        description: dlt child table; one row per issue label.
+        freshness: null
       - name: releases
         description: One row per release; `_repo` carries the source repository.

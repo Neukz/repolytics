@@ -1,0 +1,16 @@
+version: 2
+
+seeds:
+  - name: projects
+    description: >
+      Single source of truth linking each tracked GitHub repo to its PyPI
+      package. Loaded by dbt to give the downloads fact a repository foreign
+      key, and read by the ingestion pipeline to drive which repos/packages
+      are extracted.
+    columns:
+      - name: repo
+        description: GitHub repository in owner/name form.
+        data_tests: [not_null, unique]
+      - name: package
+        description: PyPI package name (blank for repos not published to PyPI).
+        data_tests: [unique]

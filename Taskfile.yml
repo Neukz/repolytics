@@ -14,6 +14,11 @@ tasks:
     cmds:
       - uv run ruff check .
 
+  lint:fix:
+    desc: Run ruff linter (applies fixes)
+    cmds:
+      - uv run ruff check --fix .
+
   format:
     desc: Run ruff formatter (modifies files)
     cmds:
@@ -54,13 +59,19 @@ tasks:
       - task: dbt:deps
       - task: dbt:compile
 
-  # ----- Loading -----
-  load:raw:
-    desc: Load landed Parquet into the DuckDB raw schema
+  # ----- dlt -----
+  dlt:ingest:
+    desc: Run the dlt pipeline (GitHub + PyPI) into the DuckDB raw schema
     cmds:
-      - uv run python -c "from repolytics.loading.raw_loader import load_all; print(load_all())"
+      - uv run python -m repolytics.ingestion.pipeline
 
   # ----- dbt -----
+  dbt:seed:
+    desc: Load CSV seeds into the warehouse
+    dir: dbt
+    cmds:
+      - uv run --group dbt dbt seed
+
   dbt:deps:
     desc: Install dbt packages
     dir: dbt

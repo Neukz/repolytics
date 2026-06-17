@@ -21,10 +21,13 @@ venv/
 .coverage.*
 htmlcov/
 
-# Runtime data (DuckDB warehouse, raw Parquet landing zone)
+# Runtime data (DuckDB warehouse)
 data/
 *.duckdb
 *.duckdb.wal
+
+# dlt (local config/secrets + pipeline working dir)
+.dlt/
 
 # Logs
 logs/

@@ -3,7 +3,8 @@
 See `.env.example` for the full set of variables.
 """
 
-from functools import lru_cache
+import csv
+from functools import cached_property, lru_cache
 from pathlib import Path
 
 from pydantic import SecretStr
@@ -21,24 +22,34 @@ class Settings(BaseSettings):
 
     # GitHub
     github_token: SecretStr
-    github_target_repos: str = ""
 
     # DuckDB
     duckdb_path: Path = Path("data/warehouse/repolytics.duckdb")
 
-    # Paths
-    raw_data_path: Path = Path("data/raw")
-    watermarks_path: Path = Path("data/raw/.watermarks.json")
+    # Project list (repo <-> package) - also loaded by dbt as the `projects` seed.
+    projects_file: Path = Path("dbt/seeds/projects.csv")
+
+    @cached_property
+    def projects(self) -> list[dict[str, str]]:
+        """Projects to ingest, each a `{repo, package}` row from `projects_file`.
+
+        `package` may be blank for repos not published to PyPI. Returns an empty
+        list when the file is absent.
+        """
+        if not self.projects_file.exists():
+            return []
+        with self.projects_file.open(newline="", encoding="utf-8") as file:
+            return list(csv.DictReader(file))
 
     @property
     def target_repos(self) -> list[str]:
-        """Target repositories as a clean `owner/name` list.
+        """Target repositories as a clean `owner/name` list."""
+        return [p["repo"] for p in self.projects if p.get("repo")]
 
-        Parses the comma-separated `GITHUB_TARGET_REPOS` value.
-        """
-        return [
-            repo.strip() for repo in self.github_target_repos.split(",") if repo.strip()
-        ]
+    @property
+    def packages(self) -> list[str]:
+        """Target PyPI packages as a clean list (projects without a package skipped)."""
+        return [p["package"] for p in self.projects if p.get("package")]
 
 
 @lru_cache

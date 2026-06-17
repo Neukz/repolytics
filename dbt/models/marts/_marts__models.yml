@@ -71,16 +71,6 @@ models:
               arguments:
                 to: ref('dim_dates')
                 field: date_key
-      - name: lines_added
-        data_tests:
-          - dbt_utils.expression_is_true:
-              arguments:
-                expression: ">= 0"
-      - name: lines_deleted
-        data_tests:
-          - dbt_utils.expression_is_true:
-              arguments:
-                expression: ">= 0"
 
   - name: fct_pull_requests
     description: One row per pull request. Repository resolved via the SCD2 half-open range on the PR open date.
@@ -116,11 +106,6 @@ models:
               arguments:
                 to: ref('dim_dates')
                 field: date_key
-      - name: review_count
-        data_tests:
-          - dbt_utils.expression_is_true:
-              arguments:
-                expression: ">= 0"
 
   - name: fct_issues
     description: One row per issue. Repository resolved via the SCD2 half-open range.
@@ -186,8 +171,7 @@ models:
 
   - name: fct_daily_downloads
     description: >
-      One row per package per day (PyPI 'without_mirrors' downloads). `package` is a
-      degenerate dimension - no package->repository mapping exists yet. Incremental
+      One row per package per day (PyPI 'without_mirrors' downloads). Incremental
       (delete+insert on download_key).
     columns:
       - name: download_key
@@ -195,6 +179,15 @@ models:
         data_tests: [not_null, unique]
       - name: package
         description: PyPI package name (degenerate dimension).
+      - name: repository_key
+        description: >
+          FK to dim_repositories via the projects (package->repo) seed; nullable when
+          the package has no mapped/ingested repository.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_repositories')
+                field: repository_key
       - name: date_key
         description: FK to dim_dates (download day, YYYYMMDD).
         data_tests:
