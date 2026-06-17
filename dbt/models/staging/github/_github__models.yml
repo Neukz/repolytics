@@ -69,3 +69,15 @@ models:
         data_tests: [not_null, unique]
       - name: repository
         data_tests: [not_null]
+
+  - name: stg_github__issue_labels
+    description: One row per (issue, label), flattened from the dlt child table.
+    columns:
+      - name: label_name
+        data_tests: [not_null]
+
+  - name: stg_github__pr_labels
+    description: One row per (pull request, label), flattened from the dlt child table.
+    columns:
+      - name: label_name
+        data_tests: [not_null]

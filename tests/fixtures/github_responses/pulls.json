@@ -7,10 +7,6 @@
     "created_at": "2024-01-02T00:00:00Z",
     "updated_at": "2024-01-06T00:00:00Z",
     "merged_at": "2024-01-06T00:00:00Z",
-    "additions": 120,
-    "deletions": 30,
-    "review_comments": 5,
-    "comments": 3,
     "labels": [{"id": 2, "name": "enhancement", "color": "a2eeef"}]
   },
   {
@@ -21,10 +17,6 @@
     "created_at": "2024-01-04T00:00:00Z",
     "updated_at": "2024-01-04T00:00:00Z",
     "merged_at": null,
-    "additions": 10,
-    "deletions": 1,
-    "review_comments": 0,
-    "comments": 0,
     "labels": []
   }
 ]

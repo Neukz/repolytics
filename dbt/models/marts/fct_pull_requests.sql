@@ -10,18 +10,14 @@ select
     {{ dbt_utils.generate_surrogate_key(['p.repository', 'p.pr_number']) }} as pr_key,
     r.repository_key,
     co.contributor_key as author_key,
-    cast(strftime(p.created_at, '%Y%m%d') as integer) as opened_date_key,
-    cast(strftime(p.merged_at, '%Y%m%d') as integer) as merged_date_key,
+    {{ date_key('p.created_at') }} as opened_date_key,
+    {{ date_key('p.merged_at') }} as merged_date_key,
     p.merged_at is not null as is_merged,
-    p.time_to_merge_hours,
-    p.review_comments as review_count,
-    p.comment_count,
-    p.additions,
-    p.deletions
+    case
+        when p.merged_at is not null
+            then datediff('hour', p.created_at, p.merged_at)
+    end as time_to_merge_hours
 from pull_requests p
-left join {{ ref('dim_repositories') }} r
-    on p.repository = r.repository_name
-    and p.created_at::date >= r.valid_from
-    and p.created_at::date < r.valid_to
+{{ scd2_repository_join('p.repository', 'p.created_at::date') }}
 left join {{ ref('dim_contributors') }} co
     on p.author_login = co.username

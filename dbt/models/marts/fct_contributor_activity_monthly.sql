@@ -21,7 +21,7 @@ select
     c.contributor_key,
     m.username,
     m.event_month,
-    cast(strftime(m.event_month, '%Y%m%d') as integer) as month_date_key,
+    {{ date_key('m.event_month') }} as month_date_key,
     m.commits,
     m.prs_opened,
     m.prs_merged,

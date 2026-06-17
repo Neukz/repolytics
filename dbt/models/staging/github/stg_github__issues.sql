@@ -1,26 +1,19 @@
-with source as (
-    select data::json as d, _repo, _loaded_at
-    from {{ source('github', 'issues') }}
+-- Structural cleaning over dlt's normalized `issues` table. The issues endpoint
+-- returns PRs too; drop them (real issues have no `pull_request`). Labels live in
+-- the `issues__labels` child table (see stg_github__issue_labels).
+
+with issues as (
+    select * from {{ source('github', 'issues') }}
 )
 
 select
     _repo as repository,
-    (d ->> '$.number')::bigint as issue_number,
-    d ->> '$.user.login' as author_login,
-    d ->> '$.state' as state,
-    (d ->> '$.state') = 'closed' as is_closed,
-    (d ->> '$.created_at')::timestamp as created_at,
-    (d ->> '$.closed_at')::timestamp as closed_at,
-    case
-        when (d ->> '$.closed_at') is not null then datediff(
-            'hour',
-            (d ->> '$.created_at')::timestamp,
-            (d ->> '$.closed_at')::timestamp
-        )
-    end as time_to_close_hours,
-    (d ->> '$.comments')::bigint as comment_count,
-    d -> '$.labels' as labels,
+    number as issue_number,
+    user__login as author_login,
+    state,
+    created_at,
+    closed_at,
+    comments as comment_count,
     _loaded_at
-from source
--- The issues endpoint returns PRs too; drop them (real issues have no `pull_request`).
-where (d -> '$.pull_request') is null
+from issues
+where pull_request__url is null

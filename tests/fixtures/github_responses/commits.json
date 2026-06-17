@@ -6,7 +6,7 @@
       "message": "fix: handle empty response"
     },
     "author": {"login": "alice", "id": 1},
-    "stats": {"additions": 10, "deletions": 2, "total": 12}
+    "parents": [{"sha": "aaa000", "url": "https://api.github.com/repos/encode/httpx/commits/aaa000"}]
   },
   {
     "sha": "def456",
@@ -15,6 +15,6 @@
       "message": "feat: add retry support"
     },
     "author": {"login": "bob", "id": 2},
-    "stats": {"additions": 30, "deletions": 5, "total": 35}
+    "parents": [{"sha": "abc123", "url": "https://api.github.com/repos/encode/httpx/commits/abc123"}]
   }
 ]

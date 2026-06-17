@@ -1,12 +1,13 @@
-with source as (
-    select data::json as d, _package, _loaded_at
-    from {{ source('pypi', 'downloads') }}
+-- Structural cleaning over dlt's normalized `downloads` table.
+
+with downloads as (
+    select * from {{ source('pypi', 'downloads') }}
 )
 
 select
     _package as package,
-    d ->> '$.category' as category,
-    (d ->> '$.date')::date as download_date,
-    (d ->> '$.downloads')::bigint as download_count,
+    category,
+    date::date as download_date,
+    downloads as download_count,
     _loaded_at
-from source
+from downloads

@@ -10,15 +10,15 @@ select
     {{ dbt_utils.generate_surrogate_key(['i.repository', 'i.issue_number']) }} as issue_key,
     r.repository_key,
     co.contributor_key as author_key,
-    cast(strftime(i.created_at, '%Y%m%d') as integer) as opened_date_key,
-    cast(strftime(i.closed_at, '%Y%m%d') as integer) as closed_date_key,
-    i.is_closed,
-    i.time_to_close_hours,
+    {{ date_key('i.created_at') }} as opened_date_key,
+    {{ date_key('i.closed_at') }} as closed_date_key,
+    i.state = 'closed' as is_closed,
+    case
+        when i.closed_at is not null
+            then datediff('hour', i.created_at, i.closed_at)
+    end as time_to_close_hours,
     i.comment_count
 from issues i
-left join {{ ref('dim_repositories') }} r
-    on i.repository = r.repository_name
-    and i.created_at::date >= r.valid_from
-    and i.created_at::date < r.valid_to
+{{ scd2_repository_join('i.repository', 'i.created_at::date') }}
 left join {{ ref('dim_contributors') }} co
     on i.author_login = co.username
