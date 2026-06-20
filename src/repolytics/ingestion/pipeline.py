@@ -16,28 +16,44 @@ def build_pipeline(settings: Settings) -> dlt.Pipeline:
     )
 
 
-def run(settings: Settings | None = None) -> None:
-    """Run GitHub + PyPI ingestion into the configured DuckDB warehouse."""
+def run_github(settings: Settings | None = None) -> None:
+    """Run GitHub ingestion into the configured DuckDB warehouse.
+
+    No-ops (logs and returns) when no repos are configured, so an empty repo list
+    succeeds as a skip rather than failing.
+    """
     settings = settings or get_settings()
 
     repos = settings.target_repos
-    packages = settings.packages
-    if not repos and not packages:
-        raise RuntimeError(f"No projects to ingest - check {settings.projects_file}")
+    if not repos:
+        print(f"No repos to ingest - check {settings.projects_file}")
+        return
 
     settings.duckdb_path.parent.mkdir(parents=True, exist_ok=True)
     pipeline = build_pipeline(settings)
+    source = github_source(repos, settings.github_token.get_secret_value())
+    print(pipeline.run(source))
 
-    # Run both sources in a single load so GitHub + PyPI land atomically.
-    sources = []
-    if repos:
-        sources.append(github_source(repos, settings.github_token.get_secret_value()))
-    if packages:
-        sources.append(pypi_source(packages))
 
-    info = pipeline.run(sources)
-    print(info)
+def run_pypi(settings: Settings | None = None) -> None:
+    """Run PyPI ingestion into the configured DuckDB warehouse.
+
+    No-ops (logs and returns) when no packages are configured.
+    """
+    settings = settings or get_settings()
+
+    packages = settings.packages
+    if not packages:
+        print(f"No packages to ingest - check {settings.projects_file}")
+        return
+
+    settings.duckdb_path.parent.mkdir(parents=True, exist_ok=True)
+    pipeline = build_pipeline(settings)
+    print(pipeline.run(pypi_source(packages)))
 
 
 if __name__ == "__main__":
-    run()
+    # Run GitHub + PyPI ingestion (CLI convenience wrapper for both sources).
+    settings = get_settings()
+    run_github(settings)
+    run_pypi(settings)
