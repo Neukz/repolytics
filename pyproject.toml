@@ -15,6 +15,9 @@ dbt = [
     "dbt-core>=1.11.11",
     "dbt-duckdb>=1.10.1",
 ]
+orchestration = [
+    "astronomer-cosmos>=1.14.2",
+]
 dev = [
     "pytest>=9.1.0",
     "pytest-cov>=7.1.0",

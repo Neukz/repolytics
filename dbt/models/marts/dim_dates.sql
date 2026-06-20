@@ -2,7 +2,7 @@ with spine as (
     {{
         dbt_utils.date_spine(
             datepart="day",
-            start_date="cast('2020-01-01' as date)",
+            start_date="cast('2000-01-01' as date)",
             end_date="cast('2031-01-01' as date)"
         )
     }}

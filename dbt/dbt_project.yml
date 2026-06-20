@@ -29,6 +29,10 @@ models:
       +materialized: table
       +schema: marts
 
+seeds:
+  repolytics:
+    +schema: staging
+
 snapshots:
   repolytics:
     +schema: snapshots
