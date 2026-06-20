@@ -26,18 +26,16 @@ data/
 *.duckdb
 *.duckdb.wal
 
-# dlt (local config/secrets + pipeline working dir)
-.dlt/
-
-# Logs
-logs/
-orchestration/logs/
+# Airflow
+config/airflow.cfg
 
 # dbt
 dbt/target/
 dbt/dbt_packages/
-dbt/logs/
 dbt/.user.yml
+
+# Logs
+logs/
 
 # OS / editor
 .DS_Store

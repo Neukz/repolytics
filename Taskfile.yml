@@ -84,6 +84,12 @@ tasks:
     cmds:
       - uv run --group dbt dbt compile --target ci
 
+  dbt:manifest:
+    desc: Generate target/manifest.json for Cosmos (DBT_MANIFEST load mode)
+    dir: dbt
+    cmds:
+      - uv run --group dbt dbt parse
+
   dbt:run:
     desc: Run dbt models
     dir: dbt
@@ -108,3 +114,10 @@ tasks:
     cmds:
       - uv run --group dbt dbt docs generate
       - uv run --group dbt dbt docs serve
+
+  # ----- Airflow -----
+  airflow:build:
+    desc: Build the custom Airflow image
+    deps: [dbt:manifest]
+    cmds:
+      - docker compose build

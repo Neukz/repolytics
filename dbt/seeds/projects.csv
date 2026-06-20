@@ -1,6 +1,3 @@
 repo,package
 fastapi/fastapi,fastapi
 pydantic/pydantic,pydantic
-pola-rs/polars,polars
-duckdb/duckdb,duckdb
-encode/httpx,httpx
