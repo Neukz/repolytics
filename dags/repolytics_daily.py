@@ -1,8 +1,9 @@
 """Daily Repolytics pipeline: dlt ingestion -> dbt transform.
 
-Ingestion lands GitHub + PyPI into the DuckDB ``raw`` schema in a single atomic
-dlt load. Cosmos renders the dbt project, ``max_active_tasks=1`` serializes everything
-so the dbt model tasks never open the single-writer DuckDB file concurrently.
+Ingestion runs as two independent tasks - GitHub and PyPI. Either can fail/retry
+without touching the other. Both land into the DuckDB `raw` schema and are
+upstream of the dbt transform. Cosmos renders the dbt project; `max_active_tasks=1`
+serializes everything so no two tasks open the single-writer DuckDB file at once.
 """
 
 import os
@@ -38,11 +39,18 @@ profile_config = ProfileConfig(
 )
 def repolytics_daily():
     @task
-    def ingest() -> None:
-        """Run the dlt pipeline (GitHub + PyPI) into the DuckDB ``raw`` dataset."""
-        from repolytics.ingestion.pipeline import run
+    def ingest_github() -> None:
+        """Run GitHub ingestion into the DuckDB `raw` dataset."""
+        from repolytics.ingestion.pipeline import run_github
 
-        run()
+        run_github()
+
+    @task
+    def ingest_pypi() -> None:
+        """Run PyPI ingestion into the DuckDB `raw` dataset."""
+        from repolytics.ingestion.pipeline import run_pypi
+
+        run_pypi()
 
     transform = DbtTaskGroup(
         group_id="transform",
@@ -60,7 +68,7 @@ def repolytics_daily():
         ),
     )
 
-    ingest() >> transform
+    [ingest_github(), ingest_pypi()] >> transform
 
 
 repolytics_daily()

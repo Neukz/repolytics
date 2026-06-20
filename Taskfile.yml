@@ -65,6 +65,16 @@ tasks:
     cmds:
       - uv run python -m repolytics.ingestion.pipeline
 
+  dlt:ingest:github:
+    desc: Run only GitHub ingestion into the DuckDB raw schema
+    cmds:
+      - uv run python -c "from repolytics.ingestion.pipeline import run_github; run_github()"
+
+  dlt:ingest:pypi:
+    desc: Run only PyPI ingestion into the DuckDB raw schema
+    cmds:
+      - uv run python -c "from repolytics.ingestion.pipeline import run_pypi; run_pypi()"
+
   # ----- dbt -----
   dbt:seed:
     desc: Load CSV seeds into the warehouse
@@ -115,8 +125,8 @@ tasks:
       - uv run --group dbt dbt docs generate
       - uv run --group dbt dbt docs serve
 
-  # ----- Airflow -----
-  airflow:build:
+  # ----- Docker -----
+  docker:build:
     desc: Build the custom Airflow image
     deps: [dbt:manifest]
     cmds:
