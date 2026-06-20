@@ -4,7 +4,7 @@
     config(
         unique_key='repository_id',
         strategy='check',
-        check_cols=['stars', 'forks', 'open_issues', 'description', 'topics'],
+        check_cols=['description', 'language', 'license_spdx', 'topics'],
     )
 }}
 

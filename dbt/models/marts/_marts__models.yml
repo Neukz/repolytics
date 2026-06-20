@@ -147,6 +147,31 @@ models:
               arguments:
                 expression: ">= 0"
 
+  - name: fct_releases
+    description: >
+      One row per published release. Repository resolved via the SCD2 half-open range
+      on the publish date. Incremental (delete+insert on release_key). An event fact
+      analyzed by counting (release cadence), with no additive measure.
+    columns:
+      - name: release_key
+        description: Surrogate key, hash of repository + release_id.
+        data_tests: [not_null, unique]
+      - name: repository_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_repositories')
+                field: repository_key
+      - name: date_key
+        description: FK to dim_dates (publish day, YYYYMMDD).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_dates')
+                field: date_key
+
   - name: bridge_issue_labels
     description: Bridge for the issue<->label many-to-many. Grain - one row per issue/label.
     data_tests:
@@ -198,6 +223,50 @@ models:
                 field: date_key
       - name: download_count
         description: Downloads recorded for the package that day.
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+
+  - name: fct_repository_metrics
+    description: >
+      Periodic-snapshot fact: one row per repository per capture (ingestion) day,
+      recording GitHub stars/forks/open_issues. Accumulated incrementally
+      (delete+insert on metric_key).
+    columns:
+      - name: metric_key
+        description: Surrogate key, hash of repository_id + capture date.
+        data_tests: [not_null, unique]
+      - name: repository_key
+        description: FK to dim_repositories (version current on the capture date).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_repositories')
+                field: repository_key
+      - name: date_key
+        description: FK to dim_dates (capture day, YYYYMMDD).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_dates')
+                field: date_key
+      - name: stars
+        description: Stargazer count at capture time.
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: forks
+        description: Fork count at capture time.
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: open_issues
+        description: Open issue (+PR) count at capture time.
         data_tests:
           - dbt_utils.expression_is_true:
               arguments:
