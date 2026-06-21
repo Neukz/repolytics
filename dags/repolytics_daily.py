@@ -6,6 +6,7 @@ upstream of the dbt transform. Cosmos renders the dbt project; `max_active_tasks
 serializes everything so no two tasks open the single-writer DuckDB file at once.
 """
 
+import logging
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -19,8 +20,24 @@ from cosmos import (
     RenderConfig,
 )
 
+logger = logging.getLogger(__name__)
+
 # Location of the dbt project inside the container
 DBT_PROJECT_DIR = Path(os.environ.get("DBT_PROJECT_DIR", "/opt/airflow/dbt"))
+
+
+def log_task_failure(context) -> None:
+    """Structured failure log for any task (wired via ``default_args``)."""
+    ti = context.get("task_instance")
+    logger.error(
+        "Task failed: dag=%s task=%s run_id=%s try=%s exception=%r",
+        getattr(ti, "dag_id", None),
+        getattr(ti, "task_id", None),
+        context.get("run_id"),
+        getattr(ti, "try_number", None),
+        context.get("exception"),
+    )
+
 
 profile_config = ProfileConfig(
     profile_name="repolytics",
@@ -34,23 +51,33 @@ profile_config = ProfileConfig(
     schedule="@daily",
     catchup=False,
     max_active_tasks=1,  # DuckDB is single-writer: never run two dbt tasks at once.
-    default_args={"retries": 2, "retry_delay": timedelta(minutes=5)},
+    default_args={
+        "retries": 2,
+        "retry_delay": timedelta(minutes=5),
+        "on_failure_callback": log_task_failure,
+    },
     tags=["repolytics", "elt"],
 )
 def repolytics_daily():
-    @task
-    def ingest_github() -> None:
-        """Run GitHub ingestion into the DuckDB `raw` dataset."""
+    @task(multiple_outputs=False)
+    def ingest_github() -> dict[str, int]:
+        """Run GitHub ingestion into the DuckDB `raw` dataset.
+
+        Returns per-table row counts (pushed to XCom for the summary task).
+        """
         from repolytics.ingestion.pipeline import run_github
 
-        run_github()
+        return run_github()
 
-    @task
-    def ingest_pypi() -> None:
-        """Run PyPI ingestion into the DuckDB `raw` dataset."""
+    @task(multiple_outputs=False)
+    def ingest_pypi() -> dict[str, int]:
+        """Run PyPI ingestion into the DuckDB `raw` dataset.
+
+        Returns per-table row counts (pushed to XCom for the summary task).
+        """
         from repolytics.ingestion.pipeline import run_pypi
 
-        run_pypi()
+        return run_pypi()
 
     transform = DbtTaskGroup(
         group_id="transform",
@@ -68,7 +95,19 @@ def repolytics_daily():
         ),
     )
 
-    [ingest_github(), ingest_pypi()] >> transform
+    @task
+    def summary(github_counts: dict[str, int], pypi_counts: dict[str, int]) -> None:
+        """Log per-source row counts for the run."""
+        logger.info(
+            "Ingestion summary - GitHub: %s | PyPI: %s",
+            github_counts,
+            pypi_counts,
+        )
+
+    github_counts = ingest_github()
+    pypi_counts = ingest_pypi()
+
+    [github_counts, pypi_counts] >> transform >> summary(github_counts, pypi_counts)
 
 
 repolytics_daily()
