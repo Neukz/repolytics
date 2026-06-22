@@ -21,6 +21,7 @@ orchestration = [
 dev = [
     "pytest>=9.1.0",
     "pytest-cov>=7.1.0",
+    "responses>=0.26.1",
     "ruff>=0.15.17",
 ]
 
@@ -42,3 +43,4 @@ xfail_strict = true
 
 [tool.coverage.run]
 source = ["repolytics"]
+branch = true
