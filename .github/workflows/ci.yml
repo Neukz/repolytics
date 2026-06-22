@@ -9,40 +9,109 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  check:
+  changes:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      pull-requests: read
+    outputs:
+      docker: ${{ steps.filter.outputs.docker }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            docker:
+              - 'Dockerfile'
+              - 'pyproject.toml'
+              - 'uv.lock'
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
-
       - name: Install dependencies
-        run: uv sync --locked --group dbt
-
+        run: uv sync --locked --group dev
       - name: Lint
         run: uv run --no-sync ruff check .
-
-      - name: Format check
+      - name: Check formatting
         run: uv run --no-sync ruff format --check .
 
-      - name: Unit tests
-        run: uv run --no-sync pytest tests/unit
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install dependencies
+        run: uv sync --locked --group dev
+      - name: Unit + integration tests + coverage
+        run: uv run --no-sync pytest --cov --cov-report=term-missing
 
-      - name: Integration tests
-        run: uv run --no-sync pytest tests/integration
-
+  dbt-build:
+    runs-on: ubuntu-latest
+    env:
+      DUCKDB_PATH: ${{ github.workspace }}/ci.duckdb
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install dependencies
+        run: uv sync --locked --group dbt --group dev
+      - name: Seed raw schema
+        run: uv run --no-sync python -m tests.support.warehouse
       - name: Install dbt packages
         working-directory: dbt
         run: uv run --no-sync dbt deps
-
-      - name: Compile dbt models
+      - name: dbt build (run models + tests on fixture data)
         working-directory: dbt
-        run: uv run --no-sync dbt compile --target ci
+        run: uv run --no-sync dbt build --target ci
+
+  dag-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install dependencies
+        run: uv sync --locked --all-groups
+      - name: Install dbt packages
+        working-directory: dbt
+        run: uv run --no-sync dbt deps
+      - name: Generate dbt manifest
+        working-directory: dbt
+        run: uv run --no-sync dbt parse
+      - name: DAG tests
+        run: uv run --no-sync pytest tests/dag
+
+  docker-build:
+    needs: changes
+    if: needs.changes.outputs.docker == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Build Airflow image
+        run: docker build .
