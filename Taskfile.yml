@@ -4,13 +4,13 @@ version: '3'
 
 tasks:
   install:
-    desc: Install all dependencies with uv
+    desc: Install all dependencies
     cmds:
       - uv sync --all-groups
 
   # ----- Quality: lint / format / test -----
   lint:
-    desc: Run ruff linter
+    desc: Run ruff linter (without fixes)
     cmds:
       - uv run ruff check .
 
@@ -20,19 +20,21 @@ tasks:
       - uv run ruff check --fix .
 
   format:
-    desc: Run ruff formatter (modifies files)
+    desc: Run ruff formatter (applies fixes)
     cmds:
       - uv run ruff format .
 
   format:check:
-    desc: Check formatting without modifying
+    desc: Run ruff linter (without fixes)
     cmds:
       - uv run ruff format --check .
 
   test:
-    desc: Run all tests
+    desc: Run all tests (unit, integration, dag)
     cmds:
-      - uv run pytest
+      - task: test:unit
+      - task: test:integration
+      - task: test:dag
 
   test:unit:
     desc: Run unit tests only
@@ -44,20 +46,25 @@ tasks:
     cmds:
       - uv run pytest tests/integration
 
+  test:dag:
+    desc: Run Airflow/Cosmos DAG tests
+    deps: [dbt:manifest]
+    cmds:
+      - uv run --group dbt --group orchestration pytest tests/dag
+
   test:coverage:
-    desc: Run tests with coverage report
+    desc: Run unit + integration tests with coverage report
     cmds:
       - uv run pytest --cov --cov-report=term-missing
 
   ci:
-    desc: Run full CI check locally (mirrors GitHub Actions)
+    desc: Run full CI check locally (mirrors GitHub Actions, excludes Docker build)
     cmds:
       - task: lint
       - task: format:check
-      - task: test:unit
-      - task: test:integration
-      - task: dbt:deps
-      - task: dbt:compile
+      - task: test:coverage
+      - task: dbt:build:ci
+      - task: test:dag
 
   # ----- dlt -----
   dlt:ingest:
@@ -92,7 +99,7 @@ tasks:
     desc: Compile dbt models (validate SQL without executing)
     dir: dbt
     cmds:
-      - uv run --group dbt dbt compile --target ci
+      - uv run --group dbt dbt compile
 
   dbt:manifest:
     desc: Generate target/manifest.json for Cosmos (DBT_MANIFEST load mode)
@@ -118,16 +125,18 @@ tasks:
     cmds:
       - uv run --group dbt dbt build
 
+  dbt:build:ci:
+    desc: Seed raw from fixtures and run dbt build against a throwaway DuckDB (mirrors CI)
+    env:
+      DUCKDB_PATH: /tmp/repolytics-ci.duckdb
+    cmds:
+      - rm -f "$DUCKDB_PATH"
+      - uv run python -m tests.support.warehouse
+      - cd dbt && uv run --group dbt dbt deps && uv run --group dbt dbt build --target ci
+
   dbt:docs:
     desc: Generate and serve dbt documentation
     dir: dbt
     cmds:
       - uv run --group dbt dbt docs generate
       - uv run --group dbt dbt docs serve
-
-  # ----- Docker -----
-  docker:build:
-    desc: Build the custom Airflow image
-    deps: [dbt:manifest]
-    cmds:
-      - docker compose build

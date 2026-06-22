@@ -37,7 +37,7 @@ line-length = 88
 select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "PTH", "RUF"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests/unit", "tests/integration"]
 addopts = "-ra --strict-markers --strict-config"
 xfail_strict = true
 
