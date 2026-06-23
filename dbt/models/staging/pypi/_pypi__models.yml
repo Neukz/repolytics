@@ -6,6 +6,13 @@ models:
     columns:
       - name: package
         data_tests: [not_null]
+      - name: category
+        description: PyPI overall time-series category.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [with_mirrors, without_mirrors]
       - name: download_date
         data_tests: [not_null]
       - name: download_count
