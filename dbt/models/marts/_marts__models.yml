@@ -2,32 +2,74 @@ version: 2
 
 models:
   - name: dim_dates
-    description: Calendar dimension, one row per day (2020-2030), generated in SQL.
+    description: Calendar dimension, one row per day, generated in SQL via the date spine.
+    data_tests:
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 1
+            max_value: 10000000
+          config:
+            severity: error
     columns:
       - name: date_key
         description: Surrogate date key (YYYYMMDD integer).
+        data_type: integer
         data_tests: [not_null, unique]
       - name: full_date
+        data_type: date
         data_tests: [not_null, unique]
+      - name: year
+        data_type: bigint
+      - name: quarter
+        data_type: bigint
+      - name: month
+        data_type: bigint
+      - name: month_name
+        data_type: varchar
+      - name: day_of_month
+        data_type: bigint
+      - name: day_of_week
+        data_type: bigint
+      - name: day_name
+        data_type: varchar
+      - name: is_weekend
+        data_type: boolean
+      - name: week_of_year
+        data_type: bigint
 
   - name: dim_contributors
     description: Type 1 contributor profiles aggregated across commits and pull requests.
+    data_tests:
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 1
+            max_value: 10000000
+          config:
+            severity: error
     columns:
       - name: contributor_key
+        data_type: varchar
         data_tests: [not_null, unique]
       - name: username
+        data_type: varchar
         data_tests: [not_null, unique]
+      - name: first_commit_date
+        data_type: date
+      - name: last_commit_date
+        data_type: date
+      - name: total_commits
+        data_type: bigint
+      - name: total_prs_opened
+        data_type: bigint
+      - name: total_prs_merged
+        data_type: bigint
+      - name: distinct_projects_count
+        data_type: bigint
+      - name: primary_project
+        data_type: varchar
 
   - name: dim_repositories
     description: SCD Type 2 repository dimension (one row per version) built on snap_repositories.
-    columns:
-      - name: repository_key
-        description: Surrogate key, hash of repository_id + the snapshot version timestamp.
-        data_tests: [not_null, unique]
-      - name: repository_id
-        data_tests: [not_null]
-      - name: is_current
-        data_tests: [not_null]
     data_tests:
       - dbt_utils.mutually_exclusive_ranges:
           arguments:
@@ -35,22 +77,81 @@ models:
             upper_bound_column: valid_to
             partition_by: repository_id
             gaps: not_allowed
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 1
+            max_value: 10000000
+          config:
+            severity: error
+    columns:
+      - name: repository_key
+        description: Surrogate key, hash of repository_id + the snapshot version timestamp.
+        data_type: varchar
+        data_tests: [not_null, unique]
+      - name: repository_id
+        data_type: bigint
+        data_tests: [not_null]
+      - name: repository_name
+        data_type: varchar
+      - name: name
+        data_type: varchar
+      - name: owner_login
+        data_type: varchar
+      - name: description
+        data_type: varchar
+      - name: language
+        data_type: varchar
+      - name: license_spdx
+        data_type: varchar
+      - name: topics
+        data_type: varchar
+      - name: created_at
+        data_type: timestamp with time zone
+      - name: updated_at
+        data_type: timestamp with time zone
+      - name: valid_from
+        data_type: date
+      - name: valid_to
+        data_type: date
+      - name: is_current
+        data_type: boolean
+        data_tests: [not_null]
 
   - name: dim_labels
     description: Type 1 dimension of distinct issue/PR labels across all projects.
+    data_tests:
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 1
+            max_value: 10000000
+          config:
+            severity: warn
     columns:
       - name: label_key
+        data_type: varchar
         data_tests: [not_null, unique]
       - name: label_name
+        data_type: varchar
         data_tests: [not_null, unique]
+      - name: label_color
+        data_type: varchar
 
   - name: fct_commits
     description: One row per commit. Repository resolved via the SCD2 half-open date range.
+    data_tests:
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 1
+            max_value: 10000000
+          config:
+            severity: error
     columns:
       - name: commit_key
         description: Surrogate key, hash of repository + commit_sha.
+        data_type: varchar
         data_tests: [not_null, unique]
       - name: repository_key
+        data_type: varchar
         data_tests:
           - not_null
           - relationships:
@@ -59,26 +160,44 @@ models:
                 field: repository_key
       - name: contributor_key
         description: Nullable - commits whose author has no GitHub login stay unattributed.
+        data_type: varchar
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_contributors')
                 field: contributor_key
       - name: date_key
+        data_type: integer
         data_tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('dim_dates')
                 field: date_key
+      - name: commit_hash
+        data_type: varchar
+      - name: committed_at
+        data_type: timestamp with time zone
+      - name: _loaded_at
+        description: dlt load timestamp; the incremental watermark for this model.
+        data_type: timestamp with time zone
 
   - name: fct_pull_requests
     description: One row per pull request. Repository resolved via the SCD2 half-open range on the PR open date.
+    data_tests:
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 1
+            max_value: 10000000
+          config:
+            severity: warn
     columns:
       - name: pr_key
         description: Surrogate key, hash of repository + pr_number.
+        data_type: varchar
         data_tests: [not_null, unique]
       - name: repository_key
+        data_type: varchar
         data_tests:
           - not_null
           - relationships:
@@ -87,12 +206,14 @@ models:
                 field: repository_key
       - name: author_key
         description: Nullable FK to dim_contributors.
+        data_type: varchar
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_contributors')
                 field: contributor_key
       - name: opened_date_key
+        data_type: integer
         data_tests:
           - not_null
           - relationships:
@@ -101,19 +222,41 @@ models:
                 field: date_key
       - name: merged_date_key
         description: Nullable - only set for merged PRs.
+        data_type: integer
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_dates')
                 field: date_key
+      - name: is_merged
+        data_type: boolean
+      - name: time_to_merge_hours
+        description: Hours from open to merge; null for unmerged PRs.
+        data_type: bigint
+        data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                row_condition: "time_to_merge_hours is not null"
+              config:
+                severity: warn
 
   - name: fct_issues
     description: One row per issue. Repository resolved via the SCD2 half-open range.
+    data_tests:
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 1
+            max_value: 10000000
+          config:
+            severity: warn
     columns:
       - name: issue_key
         description: Surrogate key, hash of repository + issue_number.
+        data_type: varchar
         data_tests: [not_null, unique]
       - name: repository_key
+        data_type: varchar
         data_tests:
           - not_null
           - relationships:
@@ -122,12 +265,14 @@ models:
                 field: repository_key
       - name: author_key
         description: Nullable FK to dim_contributors.
+        data_type: varchar
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_contributors')
                 field: contributor_key
       - name: opened_date_key
+        data_type: integer
         data_tests:
           - not_null
           - relationships:
@@ -136,13 +281,28 @@ models:
                 field: date_key
       - name: closed_date_key
         description: Nullable - only set for closed issues.
+        data_type: integer
         data_tests:
           - relationships:
               arguments:
                 to: ref('dim_dates')
                 field: date_key
-      - name: comment_count
+      - name: is_closed
+        data_type: boolean
+      - name: time_to_close_hours
+        description: Hours from open to close; null for open issues.
+        data_type: bigint
         data_tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                row_condition: "time_to_close_hours is not null"
+              config:
+                severity: warn
+      - name: comment_count
+        data_type: bigint
+        data_tests:
+          - not_null
           - dbt_utils.expression_is_true:
               arguments:
                 expression: ">= 0"
@@ -152,11 +312,20 @@ models:
       One row per published release. Repository resolved via the SCD2 half-open range
       on the publish date. Incremental (delete+insert on release_key). An event fact
       analyzed by counting (release cadence), with no additive measure.
+    data_tests:
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 1
+            max_value: 10000000
+          config:
+            severity: warn
     columns:
       - name: release_key
         description: Surrogate key, hash of repository + release_id.
+        data_type: varchar
         data_tests: [not_null, unique]
       - name: repository_key
+        data_type: varchar
         data_tests:
           - not_null
           - relationships:
@@ -165,12 +334,22 @@ models:
                 field: repository_key
       - name: date_key
         description: FK to dim_dates (publish day, YYYYMMDD).
+        data_type: integer
         data_tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('dim_dates')
                 field: date_key
+      - name: tag_name
+        data_type: varchar
+      - name: release_name
+        data_type: varchar
+      - name: published_at
+        data_type: timestamp with time zone
+      - name: _loaded_at
+        description: dlt load timestamp; the incremental watermark for this model.
+        data_type: timestamp with time zone
 
   - name: bridge_issue_labels
     description: Bridge for the issue<->label many-to-many. Grain - one row per issue/label.
@@ -178,8 +357,15 @@ models:
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns: [issue_key, label_key]
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 1
+            max_value: 10000000
+          config:
+            severity: warn
     columns:
       - name: issue_key
+        data_type: varchar
         data_tests:
           - not_null
           - relationships:
@@ -187,6 +373,7 @@ models:
                 to: ref('fct_issues')
                 field: issue_key
       - name: label_key
+        data_type: varchar
         data_tests:
           - not_null
           - relationships:
@@ -198,16 +385,27 @@ models:
     description: >
       One row per package per day (PyPI 'without_mirrors' downloads). Incremental
       (delete+insert on download_key).
+    data_tests:
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 1
+            max_value: 10000000
+          config:
+            severity: error
     columns:
       - name: download_key
         description: Surrogate key, hash of package + download_date.
+        data_type: varchar
         data_tests: [not_null, unique]
       - name: package
         description: PyPI package name (degenerate dimension).
+        data_type: varchar
+        data_tests: [not_null]
       - name: repository_key
         description: >
           FK to dim_repositories via the projects (package->repo) seed; nullable when
           the package has no mapped/ingested repository.
+        data_type: varchar
         data_tests:
           - relationships:
               arguments:
@@ -215,6 +413,7 @@ models:
                 field: repository_key
       - name: date_key
         description: FK to dim_dates (download day, YYYYMMDD).
+        data_type: integer
         data_tests:
           - not_null
           - relationships:
@@ -223,7 +422,9 @@ models:
                 field: date_key
       - name: download_count
         description: Downloads recorded for the package that day.
+        data_type: bigint
         data_tests:
+          - not_null
           - dbt_utils.expression_is_true:
               arguments:
                 expression: ">= 0"
@@ -233,12 +434,25 @@ models:
       Periodic-snapshot fact: one row per repository per capture (ingestion) day,
       recording GitHub stars/forks/open_issues. Accumulated incrementally
       (delete+insert on metric_key).
+    data_tests:
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 1
+            max_value: 10000000
+          config:
+            severity: error
     columns:
       - name: metric_key
         description: Surrogate key, hash of repository_id + capture date.
+        data_type: varchar
         data_tests: [not_null, unique]
+      - name: repository_id
+        data_type: bigint
+      - name: repository_name
+        data_type: varchar
       - name: repository_key
         description: FK to dim_repositories (version current on the capture date).
+        data_type: varchar
         data_tests:
           - not_null
           - relationships:
@@ -247,6 +461,7 @@ models:
                 field: repository_key
       - name: date_key
         description: FK to dim_dates (capture day, YYYYMMDD).
+        data_type: integer
         data_tests:
           - not_null
           - relationships:
@@ -255,19 +470,25 @@ models:
                 field: date_key
       - name: stars
         description: Stargazer count at capture time.
+        data_type: bigint
         data_tests:
+          - not_null
           - dbt_utils.expression_is_true:
               arguments:
                 expression: ">= 0"
       - name: forks
         description: Fork count at capture time.
+        data_type: bigint
         data_tests:
+          - not_null
           - dbt_utils.expression_is_true:
               arguments:
                 expression: ">= 0"
       - name: open_issues
         description: Open issue (+PR) count at capture time.
+        data_type: bigint
         data_tests:
+          - not_null
           - dbt_utils.expression_is_true:
               arguments:
                 expression: ">= 0"
@@ -276,20 +497,35 @@ models:
     description: >
       Aggregate fact, one row per contributor per month, pivoting the activity event
       stream into commit / PR / issue counts.
+    data_tests:
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 1
+            max_value: 10000000
+          config:
+            severity: warn
     columns:
       - name: activity_key
         description: Surrogate key, hash of contributor_key + event_month.
+        data_type: varchar
         data_tests: [not_null, unique]
       - name: contributor_key
         description: FK to dim_contributors.
+        data_type: varchar
         data_tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('dim_contributors')
                 field: contributor_key
+      - name: username
+        data_type: varchar
+      - name: event_month
+        description: First day of the activity month (timestamp).
+        data_type: timestamp
       - name: month_date_key
         description: FK to dim_dates (first day of the activity month, YYYYMMDD).
+        data_type: integer
         data_tests:
           - not_null
           - relationships:
@@ -297,32 +533,17 @@ models:
                 to: ref('dim_dates')
                 field: date_key
       - name: commits
-        description: Commits authored that month.
-        data_tests:
-          - dbt_utils.expression_is_true:
-              arguments:
-                expression: ">= 0"
+        description: Commits authored that month (count, non-negative by construction).
+        data_type: bigint
       - name: prs_opened
-        description: Pull requests opened that month.
-        data_tests:
-          - dbt_utils.expression_is_true:
-              arguments:
-                expression: ">= 0"
+        description: Pull requests opened that month (count, non-negative by construction).
+        data_type: bigint
       - name: prs_merged
-        description: Pull requests merged that month.
-        data_tests:
-          - dbt_utils.expression_is_true:
-              arguments:
-                expression: ">= 0"
+        description: Pull requests merged that month (count, non-negative by construction).
+        data_type: bigint
       - name: issues_opened
-        description: Issues opened that month.
-        data_tests:
-          - dbt_utils.expression_is_true:
-              arguments:
-                expression: ">= 0"
+        description: Issues opened that month (count, non-negative by construction).
+        data_type: bigint
       - name: issues_closed
-        description: Issues closed that month.
-        data_tests:
-          - dbt_utils.expression_is_true:
-              arguments:
-                expression: ">= 0"
+        description: Issues closed that month (count, non-negative by construction).
+        data_type: bigint
