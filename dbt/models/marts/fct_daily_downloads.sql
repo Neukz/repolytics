@@ -1,10 +1,8 @@
 -- PyPI daily download fact: one row per package per day. `repository_key` is resolved
 -- through the `projects` seed (package -> repo) and the SCD2 dim_repositories half-open
--- range; it is nullable for packages with no mapped/ingested repo.
--- Filtered to the 'without_mirrors' overall time-series category to avoid double
--- counting 'with_mirrors' and to exclude the recent-endpoint 'last_*' aggregates.
--- Incremental (delete+insert on download_key): only processes days at or after the
--- latest download_date already loaded; the unique key keeps it idempotent.
+-- range; it is nullable for packages with no mapped/ingested repo. Incremental
+-- (delete+insert on download_key): only processes days at or after the latest
+-- download_date already loaded; the unique key keeps it idempotent.
 
 {{
     config(
@@ -17,10 +15,9 @@
 
 with downloads as (
     select * from {{ ref('stg_pypi__downloads') }}
-    where category = 'without_mirrors'
     {% if is_incremental() %}
     -- date_key is the only date column on the target table; compare the day's key.
-    and {{ date_key('download_date') }} >= (select max(date_key) from {{ this }})
+    where {{ date_key('download_date') }} >= (select max(date_key) from {{ this }})
     {% endif %}
 )
 

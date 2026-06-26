@@ -1,8 +1,9 @@
 """Integration test: the real sources normalize fixtures into the DuckDB `raw` schema.
 
-Drives the production `github_source` / `pypi_source` (HTTP mocked from the recorded
-fixtures via `tests.support.warehouse.load_raw_fixtures`) into a temporary DuckDB and
-asserts the normalized table/column contract that the dbt staging models depend on.
+Drives the production `github_source` (HTTP mocked) and `pypi_source` (fake BigQuery
+runner) from the recorded fixtures via `load_raw_fixtures` into a temporary
+DuckDB and asserts the normalized table/column contract that the dbt staging models
+depend on.
 """
 
 from collections.abc import Iterator
@@ -66,6 +67,18 @@ def test_metadata_columns_present(loaded_db: duckdb.DuckDBPyConnection) -> None:
     assert package == PACKAGE
 
 
+def test_downloads_contract(loaded_db: duckdb.DuckDBPyConnection) -> None:
+    # One non-mirror count per package/day: the columns the staging model reads.
+    cols = {
+        r[0]
+        for r in loaded_db.execute(
+            "select column_name from information_schema.columns "
+            "where table_schema = 'raw' and table_name = 'downloads'"
+        ).fetchall()
+    }
+    assert {"_package", "date", "downloads", "_loaded_at"} <= cols
+
+
 def test_pull_request_marker_column_exists(
     loaded_db: duckdb.DuckDBPyConnection,
 ) -> None:
@@ -87,4 +100,4 @@ def test_row_counts(loaded_db: duckdb.DuckDBPyConnection) -> None:
 
     assert count("commits") == 2
     assert count("issues") == 2  # includes the PR-shaped issue (staging filters it)
-    assert count("downloads") == 2
+    assert count("downloads") == 1  # one package, one day from the BigQuery fixture

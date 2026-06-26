@@ -79,6 +79,8 @@ x-airflow-common:
     DUCKDB_PATH: /opt/airflow/data/warehouse/repolytics.duckdb
     # dbt project path
     DBT_PROJECT_DIR: /opt/airflow/dbt
+    # BigQuery (PyPI download stats): ADC file mounted from the host (see volumes).
+    GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/gcloud/adc.json
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
@@ -90,6 +92,8 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/data:/opt/airflow/data
     # repolytics package source (src-layout)
     - ${AIRFLOW_PROJ_DIR:-.}/src:/opt/airflow/project/src
+    # Google Cloud ADC
+    - ${HOME}/.config/gcloud/application_default_credentials.json:/opt/airflow/gcloud/adc.json:ro
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on

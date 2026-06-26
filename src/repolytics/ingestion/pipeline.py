@@ -1,6 +1,7 @@
 """dlt pipelines wiring GitHub and PyPI ingestion into the DuckDB `raw` dataset."""
 
 import logging
+from datetime import UTC, date, datetime, timedelta
 
 import dlt
 
@@ -51,11 +52,14 @@ def run_github(settings: Settings | None = None) -> dict[str, int]:
     return _table_row_counts(pipeline)
 
 
-def run_pypi(settings: Settings | None = None) -> dict[str, int]:
-    """Run PyPI ingestion into the configured DuckDB warehouse.
+def run_pypi(
+    settings: Settings | None = None, target_date: date | None = None
+) -> dict[str, int]:
+    """Run PyPI ingestion for a single day into the configured DuckDB warehouse.
 
-    No-ops (logs and returns `{}`) when no packages are configured. Returns the
-    per-table row counts loaded in this run.
+    Queries the BigQuery public dataset for `target_date` (defaults to yesterday
+    UTC, the most recent complete partition). No-ops (logs and returns `{}`) when
+    no packages are configured. Returns the per-table row counts loaded in this run.
     """
     settings = settings or get_settings()
 
@@ -64,9 +68,11 @@ def run_pypi(settings: Settings | None = None) -> dict[str, int]:
         logger.warning("No packages to ingest - check %s", settings.projects_file)
         return {}
 
+    target_date = target_date or (datetime.now(UTC).date() - timedelta(days=1))
     settings.duckdb_path.parent.mkdir(parents=True, exist_ok=True)
     pipeline = build_pipeline(settings)
-    logger.info("PyPI ingestion complete: %s", pipeline.run(pypi_source(packages)))
+    source = pypi_source(packages, target_date, project=settings.gcp_project)
+    logger.info("PyPI ingestion complete (%s): %s", target_date, pipeline.run(source))
     return _table_row_counts(pipeline)
 
 

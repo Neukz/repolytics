@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: pypi
-    description: PyPI Stats data loaded by dlt; one row per package/day/category.
+    description: PyPI download data loaded by dlt from BigQuery; one row per package/day.
     schema: raw
     loaded_at_field: _loaded_at
     freshness:
