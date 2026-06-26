@@ -44,10 +44,19 @@ def github_source(repos: list[str], token: str) -> list:
             yield stamp(_repo=repo)(response.json())
 
     @dlt.resource(name="commits", write_disposition="merge", primary_key="sha")
-    def commits() -> Iterator[dict]:
+    def commits(
+        updated: dlt.sources.incremental[str] = dlt.sources.incremental(  # noqa: B008
+            "commit.author.date"
+        ),
+    ) -> Iterator[dict]:
+        # `since` (server-side, on commit date) bounds the fetch; dlt filters + merge
+        # keep it idempotent. The cursor is global across repos and commit dates can be
+        # backdated (rebases), so a backdated commit pushed today may be missed - the
+        # same trade-off the fct_commits watermark documents.
+        params = {"since": updated.last_value} if updated.last_value else {}
         for repo in repos:
             owner, name = repo.split("/")
-            yield from _paginate(f"/repos/{owner}/{name}/commits", repo)
+            yield from _paginate(f"/repos/{owner}/{name}/commits", repo, params)
 
     @dlt.resource(
         name="issues",
@@ -57,22 +66,38 @@ def github_source(repos: list[str], token: str) -> list:
         # PR-shaped issues, so the staging PR filter never references a missing column.
         columns={"pull_request__url": {"data_type": "text", "nullable": True}},
     )
-    def issues() -> Iterator[dict]:
+    def issues(
+        updated: dlt.sources.incremental[str] = dlt.sources.incremental(  # noqa: B008
+            "updated_at"
+        ),
+    ) -> Iterator[dict]:
+        # `since` filters server-side on updated_at; sort asc so the cursor advances
+        # monotonically. Global cursor across repos (see commits caveat).
+        params = {"state": "all", "sort": "updated", "direction": "asc"}
+        if updated.last_value:
+            params["since"] = updated.last_value
         for repo in repos:
             owner, name = repo.split("/")
-            yield from _paginate(
-                f"/repos/{owner}/{name}/issues", repo, {"state": "all"}
-            )
+            yield from _paginate(f"/repos/{owner}/{name}/issues", repo, params)
 
     @dlt.resource(
         name="pull_requests",
         write_disposition="merge",
         primary_key=["_repo", "number"],  # PR number is unique per repo
     )
-    def pull_requests() -> Iterator[dict]:
+    def pull_requests(
+        updated: dlt.sources.incremental[str] = dlt.sources.incremental(  # noqa: B008
+            "updated_at"
+        ),
+    ) -> Iterator[dict]:
+        # The /pulls endpoint has no `since`, so we can't bound the fetch server-side
+        # and can't use dlt's row_order early-exit either (it assumes one monotonic
+        # stream, but looping repos makes the updated_at sequence saw-tooth). We page
+        # the PR list and let dlt's cursor + merge drop/upsert unchanged rows.
+        params = {"state": "all", "sort": "updated", "direction": "desc"}
         for repo in repos:
             owner, name = repo.split("/")
-            yield from _paginate(f"/repos/{owner}/{name}/pulls", repo, {"state": "all"})
+            yield from _paginate(f"/repos/{owner}/{name}/pulls", repo, params)
 
     @dlt.resource(name="releases", write_disposition="merge", primary_key="id")
     def releases() -> Iterator[dict]:

@@ -383,7 +383,7 @@ models:
 
   - name: fct_daily_downloads
     description: >
-      One row per package per day (PyPI 'without_mirrors' downloads). Incremental
+      One row per package per day (PyPI non-mirror downloads). Incremental
       (delete+insert on download_key).
     data_tests:
       - dbt_expectations.expect_table_row_count_to_be_between:

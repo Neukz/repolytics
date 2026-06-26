@@ -1,36 +1,105 @@
-"""dlt source for the PyPI Stats API.
+"""dlt source for PyPI download stats from the Google BigQuery public dataset.
 
-Fetches the per-package overall download time series and yields one row per
-day/category, stamped with `_package` + `_loaded_at`.
+Queries the day-partitioned `bigquery-public-data.pypi.file_downloads` table for
+a single date (partition-pruned, so each run scans only that day), aggregating
+non-mirror downloads per package. Date windowing is the increment - re-running a
+date is idempotent via `write_disposition="merge"` on `(_package, date)`.
 """
 
-import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterable, Iterator, Mapping
+from datetime import date
 
 import dlt
-from dlt.sources.helpers.rest_client import RESTClient
 
 from repolytics.ingestion._meta import stamp
 
-BASE_URL = "https://pypistats.org/api"
+TABLE = "bigquery-public-data.pypi.file_downloads"
+
+# Bulk-mirror installers excluded so counts reflect real installs, matching pypistats'
+# "without_mirrors" definition.
+# See: https://pypistats.org/faqs#what-is-the-difference-between-without_mirrors-and-with_mirrors
+MIRROR_INSTALLERS = ["bandersnatch", "z3c.pypimirror", "Artifactory", "devpi"]
+
+# Hard ceiling on bytes scanned per query. A partition-pruned single-day query stays
+# well under this, so hitting it means the date filter was lost
+MAX_BYTES_BILLED = 100 * 1024**3  # 100 GiB
+
+QUERY = f"""
+SELECT file.project AS package, COUNT(*) AS downloads
+FROM `{TABLE}`
+WHERE DATE(timestamp) = @target_date
+  AND file.project IN UNNEST(@packages)
+  AND COALESCE(details.installer.name, '') NOT IN UNNEST(@mirror_installers)
+GROUP BY file.project
+"""
+
+# (sql, query_parameters) -> rows, each row mapping `package` and `downloads`.
+QueryRunner = Callable[[str, list], Iterable[Mapping]]
+
+
+def _query_parameters(target_date: date, packages: list[str]) -> list:
+    """Build the BigQuery query parameters (parameterized to keep the scan pruned)."""
+    from google.cloud import bigquery
+
+    return [
+        bigquery.ScalarQueryParameter("target_date", "DATE", target_date),
+        bigquery.ArrayQueryParameter("packages", "STRING", packages),
+        bigquery.ArrayQueryParameter("mirror_installers", "STRING", MIRROR_INSTALLERS),
+    ]
+
+
+def _job_config(parameters: list) -> object:
+    """Query config: bind the parameters and cap bytes billed as a cost guard."""
+    from google.cloud import bigquery
+
+    return bigquery.QueryJobConfig(
+        query_parameters=parameters,
+        maximum_bytes_billed=MAX_BYTES_BILLED,
+    )
+
+
+def _default_runner(project: str | None) -> QueryRunner:
+    """Run the query against BigQuery, billing jobs to `project`."""
+
+    def run(sql: str, parameters: list) -> Iterable[Mapping]:
+        from google.cloud import bigquery
+
+        client = bigquery.Client(project=project)
+        return client.query(sql, job_config=_job_config(parameters)).result()
+
+    return run
 
 
 @dlt.source(name="pypi")
-def pypi_source(packages: list[str], *, min_interval: float = 1.0) -> object:
-    """dlt source yielding PyPI overall downloads for each package."""
-    client = RESTClient(base_url=BASE_URL)
+def pypi_source(
+    packages: list[str],
+    target_date: date,
+    *,
+    project: str | None = None,
+    query_runner: QueryRunner | None = None,
+) -> object:
+    """dlt source yielding one daily non-mirror download count per package.
+
+    `target_date` selects the BigQuery day partition. `query_runner` is injectable
+    for offline tests; by default it runs against BigQuery using `project` for billing.
+    """
+    runner = query_runner or _default_runner(project)
 
     @dlt.resource(
         name="downloads",
         write_disposition="merge",
-        primary_key=["_package", "category", "date"],
+        primary_key=["_package", "date"],
     )
     def downloads() -> Iterator[dict]:
-        for package in packages:
-            response = client.get(f"/packages/{package}/overall")
-            response.raise_for_status()
-            apply = stamp(_package=package)
-            yield from (apply(row) for row in response.json()["data"])
-            time.sleep(min_interval)  # courtesy delay between packages
+        apply = stamp()  # adds _loaded_at only; package is a real column
+        iso = target_date.isoformat()
+        for row in runner(QUERY, _query_parameters(target_date, packages)):
+            yield apply(
+                {
+                    "_package": row["package"],
+                    "date": iso,
+                    "downloads": row["downloads"],
+                }
+            )
 
     return downloads

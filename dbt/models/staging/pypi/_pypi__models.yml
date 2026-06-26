@@ -2,17 +2,10 @@ version: 2
 
 models:
   - name: stg_pypi__downloads
-    description: One cleaned row per package/category/day download count.
+    description: One cleaned row per package/day non-mirror download count.
     columns:
       - name: package
         data_tests: [not_null]
-      - name: category
-        description: PyPI overall time-series category.
-        data_tests:
-          - not_null
-          - accepted_values:
-              arguments:
-                values: [with_mirrors, without_mirrors]
       - name: download_date
         data_tests: [not_null]
       - name: download_count
@@ -20,4 +13,4 @@ models:
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
-            combination_of_columns: [package, category, download_date]
+            combination_of_columns: [package, download_date]

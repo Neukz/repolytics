@@ -1,14 +1,17 @@
 """Daily Repolytics pipeline: dlt ingestion -> dbt transform.
 
-Ingestion runs as two independent tasks - GitHub and PyPI. Either can fail/retry
-without touching the other. Both land into the DuckDB `raw` schema and are
-upstream of the dbt transform. Cosmos renders the dbt project; `max_active_tasks=1`
-serializes everything so no two tasks open the single-writer DuckDB file at once.
+Ingestion runs as two independent tasks. PyPI is date-windowed: it queries the
+BigQuery public dataset for the run's `data_interval_start`, so the DAG is
+backfillable per day. GitHub uses dlt incremental cursors (global, not per-interval),
+so it is skipped on historical backfill runs. Both land into the DuckDB `raw` schema
+upstream of the dbt transform. Cosmos renders the dbt project; `max_active_tasks=1` +
+`max_active_runs=1` serialize everything so no two tasks/runs open the single-writer
+DuckDB file at once.
 """
 
 import logging
 import os
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from airflow.sdk import dag, task
@@ -50,7 +53,8 @@ profile_config = ProfileConfig(
     dag_id="repolytics_daily",
     schedule="@daily",
     catchup=False,
-    max_active_tasks=1,  # DuckDB is single-writer: never run two dbt tasks at once.
+    max_active_tasks=1,  # DuckDB is single-writer: never run two dbt tasks at once
+    max_active_runs=1,  # serialize runs so a backfill never overlaps DuckDB writers
     default_args={
         "retries": 2,
         "retry_delay": timedelta(minutes=5),
@@ -61,23 +65,39 @@ profile_config = ProfileConfig(
 def repolytics_daily():
     @task(multiple_outputs=False)
     def ingest_github() -> dict[str, int]:
-        """Run GitHub ingestion into the DuckDB `raw` dataset.
+        """Run GitHub incremental ingestion into the DuckDB `raw` dataset.
 
+        Skipped on historical backfill runs: the dlt cursor is global (not
+        per-interval), so replaying old intervals for GitHub is meaningless.
         Returns per-table row counts (pushed to XCom for the summary task).
         """
+        from airflow.sdk import get_current_context
+
         from repolytics.ingestion.pipeline import run_github
 
+        data_interval_end = get_current_context()["data_interval_end"]
+        if (datetime.now(UTC) - data_interval_end).days > 1:
+            logger.info(
+                "Skipping GitHub ingest for backfill interval ending %s",
+                data_interval_end,
+            )
+            return {}
         return run_github()
 
     @task(multiple_outputs=False)
     def ingest_pypi() -> dict[str, int]:
-        """Run PyPI ingestion into the DuckDB `raw` dataset.
+        """Run PyPI ingestion for the run's data-interval day (BigQuery).
 
-        Returns per-table row counts (pushed to XCom for the summary task).
+        Uses `data_interval_start`, so each run loads exactly one day and
+        the DAG backfills cleanly per interval. Returns per-table row counts
+        (pushed to XCom for the summary task).
         """
+        from airflow.sdk import get_current_context
+
         from repolytics.ingestion.pipeline import run_pypi
 
-        return run_pypi()
+        target_date = get_current_context()["data_interval_start"].date()
+        return run_pypi(target_date=target_date)
 
     transform = DbtTaskGroup(
         group_id="transform",

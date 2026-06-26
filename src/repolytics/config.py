@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # DuckDB
     duckdb_path: Path = Path("data/warehouse/repolytics.duckdb")
 
+    # Google Cloud project that BigQuery PyPI-download jobs are billed to.
+    gcp_project: str | None = None
+
     # Project list (repo <-> package) - also loaded by dbt as the `projects` seed.
     projects_file: Path = Path("dbt/seeds/projects.csv")
 

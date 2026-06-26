@@ -6,7 +6,6 @@ with downloads as (
 
 select
     _package as package,
-    category,
     date::date as download_date,
     downloads as download_count,
     _loaded_at
