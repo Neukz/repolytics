@@ -1,0 +1,27 @@
+version: 2
+
+exposures:
+  - name: repolytics_dashboard
+    label: Repolytics Analytics Dashboard
+    type: application
+    maturity: high
+    url: http://localhost:8501
+    description: >
+      Streamlit serving layer (`dashboard/`) that answers the project's driving
+      questions - project health & popularity, development velocity, contributor
+      retention & bus factor, and release cadence - by querying the marts read-only.
+    depends_on:
+      - ref('fct_commits')
+      - ref('fct_pull_requests')
+      - ref('fct_issues')
+      - ref('fct_releases')
+      - ref('fct_daily_downloads')
+      - ref('fct_repository_metrics')
+      - ref('fct_contributor_activity_monthly')
+      - ref('bridge_issue_labels')
+      - ref('dim_repositories')
+      - ref('dim_contributors')
+      - ref('dim_labels')
+      - ref('dim_dates')
+    owner:
+      name: Kacper Neumann
