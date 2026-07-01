@@ -140,3 +140,9 @@ tasks:
     cmds:
       - uv run --group dbt dbt docs generate
       - uv run --group dbt dbt docs serve
+
+  # ----- Streamlit dashboard -----
+  dashboard:
+    desc: Launch the Streamlit analytics dashboard
+    cmds:
+      - uv run --group dashboard streamlit run dashboard/app.py
