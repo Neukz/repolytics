@@ -19,6 +19,7 @@ venv/
 .mypy_cache/
 .coverage
 .coverage.*
+coverage.xml
 htmlcov/
 
 # Runtime data (DuckDB warehouse)
