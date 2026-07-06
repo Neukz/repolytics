@@ -1,7 +1,7 @@
 [project]
 name = "repolytics"
 version = "0.1.0"
-description = "End-to-end ELT pipeline for open source project analytics (GitHub + PyPI -> DuckDB -> dbt -> Airflow)"
+description = "An end-to-end ELT pipeline that measures the health, activity, and popularity of open-source Python projects over time"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
