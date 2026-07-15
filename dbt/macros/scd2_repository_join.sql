@@ -1,10 +1,7 @@
 {#-
-  Resolve a fact repository_key against the SCD2 dim_repositories using a
-  half-open date range (event_date >= valid_from AND < valid_to), so each event
-  maps to the repository version that was current when it occurred. Centralizes
-  the SCD2 join contract (half-open bounds; earliest version backdated, current
-  version valid_to = 9999-12-31) that every fact shares. Select
-  `<alias>.repository_key` after using this.
+  Resolve a fact repository_key against SCD2 dim_repositories using a half-open date
+  range (event_date >= valid_from AND < valid_to), so each event maps to the
+  repository version current when it occurred. Select `<alias>.repository_key` after.
 
     repo_expr - SQL expression for the repository full name (owner/name)
     date_expr - SQL expression for the event date (cast to date)

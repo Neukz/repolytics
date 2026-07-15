@@ -1,5 +1,4 @@
--- Type 1 contributor dimension: one row per GitHub login, aggregated across the
--- commit, pull request, and issue staging models. Rebuilt in full each run.
+-- Type 1 contributor dimension: one row per GitHub login, rebuilt each run.
 -- Stats are commit/PR-based; issue-only authors appear with zeroed counts.
 
 with commits as (

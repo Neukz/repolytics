@@ -1,7 +1,6 @@
--- Tidy contributor activity event stream at username grain: one row per discrete
--- activity event. A reusable building block for monthly aggregation (and future PR /
--- health metrics). Each PR and issue contributes up to two events (opened, and
--- merged/closed) so each lands in the month it actually happened.
+-- Contributor activity event stream at username grain: one row per activity event,
+-- reused for monthly aggregation. Each PR/issue contributes up to two events (opened
+-- and merged/closed) so each lands in the month it happened.
 
 with commits as (
     select

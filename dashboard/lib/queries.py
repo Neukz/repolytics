@@ -368,9 +368,8 @@ def contributor_leaderboard(
 def retention_cohort(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """Monthly contributor retention: % of a first-active cohort active N months on.
 
-    Necessarily **repo-agnostic**: that mart's grain is contributor x month across all
-    tracked projects (no repository_key), so retention spans the whole tracked set and
-    cannot be filtered by repo. First activity across the set sets each cohort.
+    Repo-agnostic: the mart's grain is contributor x month with no repository_key, so
+    retention spans the whole tracked set and cannot be filtered by repo.
     """
     sql = """
     with active as (
@@ -404,8 +403,7 @@ def retention_cohort(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
 def active_contributors_monthly(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """Monthly active contributors, split into new vs. returning.
 
-    Repo-agnostic for the same reason as `retention_cohort` (the mart has no
-    repository grain).
+    Repo-agnostic like `retention_cohort` (the mart has no repository grain).
     """
     sql = """
     with monthly as (

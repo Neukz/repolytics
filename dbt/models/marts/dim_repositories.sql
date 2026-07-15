@@ -14,20 +14,17 @@ with versioned as (
         topics,
         created_at,
         updated_at,
-        -- Full-resolution version timestamp drives the surrogate key so it stays
-        -- unique even if a repo changes more than once on the same calendar day;
-        -- valid_from/valid_to are kept at date grain for fact date-range joins.
+        -- Full-resolution timestamp keys the surrogate so it stays unique across
+        -- same-day changes; valid_from/valid_to are date grain for fact joins.
         dbt_valid_from as version_ts,
-        -- The earliest version opens at a past-infinity sentinel ('1900-01-01')
-        -- so historical facts that predate the first snapshot still resolve to
-        -- the first captured version instead of dropping.
+        -- Earliest version opens at a past-infinity sentinel so facts predating the
+        -- first snapshot still resolve to it instead of dropping.
         case
             when row_number() over (
                 partition by repository_id order by dbt_valid_from
             ) = 1 then date '1900-01-01'
             else dbt_valid_from::date
         end as valid_from,
-        -- '9999-12-31' = future-infinity bound
         coalesce(dbt_valid_to::date, date '9999-12-31') as valid_to,
         dbt_valid_to is null as is_current
     from {{ ref('snap_repositories') }}

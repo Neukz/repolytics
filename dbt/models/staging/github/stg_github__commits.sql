@@ -26,5 +26,4 @@ select
     c._loaded_at
 from commits c
 left join parent_counts p on c._dlt_id = p._dlt_parent_id
--- Keep non-merge commits (<= 1 parent); commits with no parents are kept too.
 where coalesce(p.parent_count, 0) <= 1

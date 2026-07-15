@@ -533,17 +533,17 @@ models:
                 to: ref('dim_dates')
                 field: date_key
       - name: commits
-        description: Commits authored that month (count, non-negative by construction).
+        description: Commits authored that month.
         data_type: bigint
       - name: prs_opened
-        description: Pull requests opened that month (count, non-negative by construction).
+        description: Pull requests opened that month.
         data_type: bigint
       - name: prs_merged
-        description: Pull requests merged that month (count, non-negative by construction).
+        description: Pull requests merged that month.
         data_type: bigint
       - name: issues_opened
-        description: Issues opened that month (count, non-negative by construction).
+        description: Issues opened that month.
         data_type: bigint
       - name: issues_closed
-        description: Issues closed that month (count, non-negative by construction).
+        description: Issues closed that month.
         data_type: bigint

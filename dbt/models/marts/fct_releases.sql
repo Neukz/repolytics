@@ -1,10 +1,6 @@
--- Release activity fact: one row per published release. Joins to dim_repositories via
--- the SCD2 half-open date range (event_date >= valid_from AND < valid_to) so each
--- release maps to the repository version current when it was published; to dim_dates
--- via an inline YYYYMMDD key on the publish date. An event fact with no additive
--- measure - analyze by counting (release cadence, time between releases).
--- Incremental (delete+insert on release_key) keyed on the monotonic dlt `_loaded_at`
--- (publish dates can be backdated); the unique key keeps it idempotent.
+-- Release activity fact: one row per published release, resolving repository via the
+-- SCD2 join on the publish date. No additive measure - analyze by counting (cadence).
+-- Incremental on the monotonic dlt `_loaded_at` (publish dates can be backdated).
 
 {{
     config(

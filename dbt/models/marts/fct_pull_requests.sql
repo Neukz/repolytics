@@ -1,6 +1,5 @@
--- Pull request lifecycle fact: one row per PR. Repository resolved via the SCD2
--- half-open range on the PR open date; author via dim_contributors; opened/merged
--- date keys are inline YYYYMMDD references to dim_dates (merged is nullable).
+-- Pull request lifecycle fact: one row per PR, resolving repository via the SCD2 join
+-- on the open date (merged_date_key is nullable for unmerged PRs).
 
 with pull_requests as (
     select * from {{ ref('stg_github__pull_requests') }}

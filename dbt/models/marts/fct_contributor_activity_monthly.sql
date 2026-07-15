@@ -1,6 +1,5 @@
--- Aggregate fact: one row per contributor per month, pivoting the activity event
--- stream into commit / PR / issue counts. Built on int_contributor_activity and the
--- conformed dims (dim_contributors, dim_dates). Foundation for retention analysis.
+-- Aggregate fact: one row per contributor per month, pivoting int_contributor_activity
+-- into commit / PR / issue counts. Foundation for retention analysis.
 
 with monthly as (
     select

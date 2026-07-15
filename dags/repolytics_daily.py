@@ -25,7 +25,6 @@ from cosmos import (
 
 logger = logging.getLogger(__name__)
 
-# Location of the dbt project inside the container
 DBT_PROJECT_DIR = Path(os.environ.get("DBT_PROJECT_DIR", "/opt/airflow/dbt"))
 
 
@@ -65,11 +64,10 @@ profile_config = ProfileConfig(
 def repolytics_daily():
     @task(multiple_outputs=False)
     def ingest_github() -> dict[str, int]:
-        """Run GitHub incremental ingestion into the DuckDB `raw` dataset.
+        """Run GitHub incremental ingestion, returning per-table row counts.
 
-        Skipped on historical backfill runs: the dlt cursor is global (not
-        per-interval), so replaying old intervals for GitHub is meaningless.
-        Returns per-table row counts (pushed to XCom for the summary task).
+        Skipped on historical backfill runs: the dlt cursor is global, so replaying
+        old intervals is meaningless.
         """
         from airflow.sdk import get_current_context
 
@@ -86,12 +84,7 @@ def repolytics_daily():
 
     @task(multiple_outputs=False)
     def ingest_pypi() -> dict[str, int]:
-        """Run PyPI ingestion for the run's data-interval day (BigQuery).
-
-        Uses `data_interval_start`, so each run loads exactly one day and
-        the DAG backfills cleanly per interval. Returns per-table row counts
-        (pushed to XCom for the summary task).
-        """
+        """Run PyPI ingestion for the run's `data_interval_start` day."""
         from airflow.sdk import get_current_context
 
         from repolytics.ingestion.pipeline import run_pypi

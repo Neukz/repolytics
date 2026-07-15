@@ -1,6 +1,5 @@
--- Issue lifecycle fact: one row per issue. Repository resolved via the SCD2 half-open
--- range on the issue open date; author via dim_contributors; opened/closed date keys
--- are inline YYYYMMDD references to dim_dates (closed is nullable).
+-- Issue lifecycle fact: one row per issue, resolving repository via the SCD2 join on
+-- the open date (closed_date_key is nullable for open issues).
 
 with issues as (
     select * from {{ ref('stg_github__issues') }}

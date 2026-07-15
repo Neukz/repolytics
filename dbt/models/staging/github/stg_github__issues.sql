@@ -1,6 +1,5 @@
--- Structural cleaning over dlt's normalized `issues` table. The issues endpoint
--- returns PRs too; drop them (real issues have no `pull_request`). Labels live in
--- the `issues__labels` child table (see stg_github__issue_labels).
+-- Structural cleaning over dlt's normalized `issues` table. The endpoint returns PRs
+-- too; drop them (real issues have no `pull_request`). Labels: see stg_github__issue_labels.
 
 with issues as (
     select * from {{ source('github', 'issues') }}

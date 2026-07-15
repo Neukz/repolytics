@@ -1,10 +1,7 @@
--- GitHub repository metrics fact: a periodic-snapshot fact at one row per repository
--- per capture (ingestion) day, recording the volatile counters stars/forks/open_issues.
--- GitHub's API returns only the *current* counter values (no history), so history is
--- accumulated incrementally - each daily run appends that day's values, dated by the
--- dlt load timestamp. `repository_key` resolves through the SCD2 dim_repositories
--- half-open range for the capture date. Incremental (delete+insert on metric_key)
--- keeps same-day re-runs idempotent.
+-- Periodic-snapshot fact: one row per repository per capture day, recording the
+-- volatile stars/forks/open_issues. GitHub returns only current values (no history),
+-- so each daily run appends that day's snapshot. Incremental (delete+insert on
+-- metric_key) keeps same-day re-runs idempotent.
 
 {{
     config(

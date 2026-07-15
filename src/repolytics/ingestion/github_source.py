@@ -49,10 +49,8 @@ def github_source(repos: list[str], token: str) -> list:
             "commit.author.date"
         ),
     ) -> Iterator[dict]:
-        # `since` (server-side, on commit date) bounds the fetch; dlt filters + merge
-        # keep it idempotent. The cursor is global across repos and commit dates can be
-        # backdated (rebases), so a backdated commit pushed today may be missed - the
-        # same trade-off the fct_commits watermark documents.
+        # `since` bounds the fetch server-side on commit date. The cursor is global
+        # across repos, so a backdated commit (rebase) pushed today can be missed.
         params = {"since": updated.last_value} if updated.last_value else {}
         for repo in repos:
             owner, name = repo.split("/")
@@ -62,8 +60,8 @@ def github_source(repos: list[str], token: str) -> list:
         name="issues",
         write_disposition="merge",
         primary_key=["_repo", "number"],  # issue number is unique per repo
-        # Force the flattened PR marker column to exist even when a load has no
-        # PR-shaped issues, so the staging PR filter never references a missing column.
+        # Force the PR marker column to exist so the staging PR filter never
+        # references a missing column when a load has no PR-shaped issues.
         columns={"pull_request__url": {"data_type": "text", "nullable": True}},
     )
     def issues(
@@ -90,10 +88,8 @@ def github_source(repos: list[str], token: str) -> list:
             "updated_at"
         ),
     ) -> Iterator[dict]:
-        # The /pulls endpoint has no `since`, so we can't bound the fetch server-side
-        # and can't use dlt's row_order early-exit either (it assumes one monotonic
-        # stream, but looping repos makes the updated_at sequence saw-tooth). We page
-        # the PR list and let dlt's cursor + merge drop/upsert unchanged rows.
+        # The /pulls endpoint has no `since`; instead we page everything and
+        # let dlt's cursor + merge drop/upsert unchanged rows.
         params = {"state": "all", "sort": "updated", "direction": "desc"}
         for repo in repos:
             owner, name = repo.split("/")
