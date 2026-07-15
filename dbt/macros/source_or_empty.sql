@@ -1,13 +1,10 @@
 {#-
-  Return `select * from <source>` when the source relation exists, otherwise an
-  empty result with the given columns (`select cast(null as <type>) as <col> ... where false`).
+  Return `select * from <source>` when the source relation exists, otherwise a typed
+  empty result. dlt only materializes a child table when some row populated the list,
+  so a list empty across every ingested row leaves the child table absent; this keeps
+  the build resilient to that case.
 
-  dlt only materializes a normalized child table when some row populated the
-  underlying list, so a list that is empty across every ingested row leaves the
-  child table absent. Wrapping the source in this macro keeps the build resilient
-  to that case.
-
-  `columns` is a mapping of column name -> SQL type, covering the columns the caller reads.
+  `columns` is a mapping of column name -> SQL type covering the columns the caller reads.
 -#}
 {% macro source_or_empty(source_name, table_name, columns) -%}
     {%- set rel = source(source_name, table_name) -%}

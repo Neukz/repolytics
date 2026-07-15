@@ -1,17 +1,12 @@
 """Composite project-health score (streamlit-free, pure DataFrame -> DataFrame).
 
-A blend of five signals, each scored **absolutely** against a fixed reference target.
-That keeps a project's score stable regardless of which other projects are selected,
-and comparable across sessions and over time. The two rate signals (PR merge rate,
-issue close rate) are already 0..1 and are used directly; the unbounded signals
-(recent commits, stars) are mapped through a saturating log transform against a
-reference, and release recency through an exponential time-decay.
+A weighted blend of five signals, each scored **absolutely** against a fixed
+reference so a project's score is stable regardless of the current selection. Rate
+signals (PR merge/issue close) are used directly; unbounded signals (commits, stars)
+go through a saturating log transform and release recency through exponential decay.
 
-Input columns (one row per repo, from `queries.health_components`):
-    repository_name, commits_90d, pr_merge_rate, issue_close_rate,
-    days_since_release (nullable -> treated as never released -> 0), stars
-
-Output adds the five `c_*` component scores (0..1) and `health_score` (0..100).
+Input columns come from `queries.health_components`; output adds the five `c_*`
+component scores (0..1) and `health_score` (0..100).
 """
 
 import numpy as np

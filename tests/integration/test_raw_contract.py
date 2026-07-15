@@ -1,9 +1,7 @@
 """Integration test: the real sources normalize fixtures into the DuckDB `raw` schema.
 
 Drives the production `github_source` (HTTP mocked) and `pypi_source` (fake BigQuery
-runner) from the recorded fixtures via `load_raw_fixtures` into a temporary
-DuckDB and asserts the normalized table/column contract that the dbt staging models
-depend on.
+runner) from recorded fixtures, asserting the table/column contract dbt depends on.
 """
 
 from collections.abc import Iterator

@@ -34,10 +34,8 @@ class Settings(BaseSettings):
 
     @cached_property
     def projects(self) -> list[dict[str, str]]:
-        """Projects to ingest, each a `{repo, package}` row from `projects_file`.
-
-        `package` may be blank for repos not published to PyPI. Returns an empty
-        list when the file is absent.
+        """Projects to ingest as `{repo, package}` rows (empty if the file is absent;
+        `package` may be blank for repos not on PyPI).
         """
         if not self.projects_file.exists():
             return []

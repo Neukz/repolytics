@@ -1,6 +1,6 @@
 -- Structural cleaning over dlt's normalized `repositories` table. Topics are
--- re-aggregated from the dlt child table into a sorted comma string so the SCD2
--- snapshot's check_cols see a stable scalar.
+-- re-aggregated from the child table into a sorted comma string so the snapshot's
+-- check_cols see a stable scalar.
 
 with repositories as (
     select * from {{ source('github', 'repositories') }}

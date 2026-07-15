@@ -1,11 +1,5 @@
--- Commit activity fact: one row per commit. Joins to dim_repositories via the SCD2
--- half-open date range (event_date >= valid_from AND < valid_to) so each commit maps
--- to the repository version that was current when it landed; to dim_contributors on
--- author login; and to dim_dates via an inline YYYYMMDD key.
--- Incremental (delete+insert on commit_key): each run only processes rows loaded
--- since the last run, keyed on the monotonic dlt `_loaded_at` (the git author date is
--- not monotonic, so a rebased/old-authored commit pushed today would be skipped).
--- The unique key keeps it idempotent.
+-- Commit activity fact: one row per commit, resolving repository via the SCD2 join.
+-- Incremental on the dlt `_loaded_at` because the git author date isn't monotonic.
 
 {{
     config(

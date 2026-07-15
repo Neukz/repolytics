@@ -41,8 +41,8 @@ line-length = 88
 select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "PTH", "RUF"]
 
 [tool.ruff.lint.isort]
-# `lib`/`views` are the dashboard app's own packages (imported relative to the
-# dashboard/ dir, which Streamlit puts on sys.path), so group them as first-party.
+# `lib`/`views` are the dashboard app's own packages (relative to dashboard/ on
+# Streamlit's sys.path), so treat them as first-party.
 known-first-party = ["lib", "views"]
 
 [tool.pytest.ini_options]

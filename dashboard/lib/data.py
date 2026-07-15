@@ -10,10 +10,7 @@ from repolytics.config import get_settings
 
 
 def connect(duckdb_path: str | Path | None = None) -> duckdb.DuckDBPyConnection:
-    """Open a read-only DuckDB connection to the warehouse.
-
-    Defaults to `Settings.duckdb_path`.
-    """
+    """Open a read-only DuckDB connection to the warehouse."""
     path = Path(duckdb_path) if duckdb_path is not None else get_settings().duckdb_path
     return duckdb.connect(str(path), read_only=True)
 
@@ -35,11 +32,8 @@ def has_marts(conn: duckdb.DuckDBPyConnection) -> bool:
 
 
 def date_bounds(conn: duckdb.DuckDBPyConnection) -> tuple[date, date]:
-    """Min/max event date across all activity facts, for the sidebar date filter.
-
-    Spans commits, PRs (opened), issues (opened), and releases so the slider covers
-    every date-filtered chart - a repo whose PRs/releases extend past its last commit
-    is not clipped.
+    """Min/max event date across all activity facts (commits, PRs, issues, releases),
+    for the sidebar date filter, so no date-filtered chart is clipped.
     """
     row = conn.execute(
         """

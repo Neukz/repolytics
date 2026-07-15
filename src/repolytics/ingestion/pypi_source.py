@@ -15,13 +15,12 @@ from repolytics.ingestion._meta import stamp
 
 TABLE = "bigquery-public-data.pypi.file_downloads"
 
-# Bulk-mirror installers excluded so counts reflect real installs, matching pypistats'
-# "without_mirrors" definition.
+# Bulk-mirror installers excluded to match pypistats' "without_mirrors" definition.
 # See: https://pypistats.org/faqs#what-is-the-difference-between-without_mirrors-and-with_mirrors
 MIRROR_INSTALLERS = ["bandersnatch", "z3c.pypimirror", "Artifactory", "devpi"]
 
-# Hard ceiling on bytes scanned per query. A partition-pruned single-day query stays
-# well under this, so hitting it means the date filter was lost
+# Cost guard: a pruned single-day query stays well under this, so hitting it means
+# the date filter was lost.
 MAX_BYTES_BILLED = 100 * 1024**3  # 100 GiB
 
 QUERY = f"""
@@ -38,7 +37,7 @@ QueryRunner = Callable[[str, list], Iterable[Mapping]]
 
 
 def _query_parameters(target_date: date, packages: list[str]) -> list:
-    """Build the BigQuery query parameters (parameterized to keep the scan pruned)."""
+    """Build the BigQuery query parameters."""
     from google.cloud import bigquery
 
     return [
@@ -49,7 +48,7 @@ def _query_parameters(target_date: date, packages: list[str]) -> list:
 
 
 def _job_config(parameters: list) -> object:
-    """Query config: bind the parameters and cap bytes billed as a cost guard."""
+    """Query config binding the parameters and capping bytes billed."""
     from google.cloud import bigquery
 
     return bigquery.QueryJobConfig(

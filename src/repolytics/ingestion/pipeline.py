@@ -22,22 +22,13 @@ def build_pipeline(settings: Settings) -> dlt.Pipeline:
 
 
 def _table_row_counts(pipeline: dlt.Pipeline) -> dict[str, int]:
-    """Rows loaded per table in the last run, excluding dlt's internal tables.
-
-    Reads `last_trace.last_normalize_info.row_counts` (table name -> count) and
-    drops the `_dlt_*` bookkeeping tables so the summary reflects only ingested data.
-    """
+    """Rows loaded per table in the last run, excluding dlt's `_dlt_*` tables."""
     counts = pipeline.last_trace.last_normalize_info.row_counts
     return {table: n for table, n in counts.items() if not table.startswith("_dlt")}
 
 
 def run_github(settings: Settings | None = None) -> dict[str, int]:
-    """Run GitHub ingestion into the configured DuckDB warehouse.
-
-    No-ops (logs and returns `{}`) when no repos are configured, so an empty repo
-    list succeeds as a skip rather than failing. Returns the per-table row counts
-    loaded in this run.
-    """
+    """Run GitHub ingestion, returning per-table row counts (`{}` if no repos)."""
     settings = settings or get_settings()
 
     repos = settings.target_repos
@@ -55,11 +46,9 @@ def run_github(settings: Settings | None = None) -> dict[str, int]:
 def run_pypi(
     settings: Settings | None = None, target_date: date | None = None
 ) -> dict[str, int]:
-    """Run PyPI ingestion for a single day into the configured DuckDB warehouse.
-
-    Queries the BigQuery public dataset for `target_date` (defaults to yesterday
-    UTC, the most recent complete partition). No-ops (logs and returns `{}`) when
-    no packages are configured. Returns the per-table row counts loaded in this run.
+    """Run PyPI ingestion for `target_date` (defaults to yesterday UTC, the most
+    recent complete partition), returning per-table row counts (no-ops to `{}` if no
+    packages).
     """
     settings = settings or get_settings()
 
