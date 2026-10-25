@@ -26,6 +26,17 @@ def test_table_row_counts_filters_dlt_internal_tables() -> None:
     assert pipeline._table_row_counts(fake) == {"commits": 2, "issues": 3}
 
 
+def test_table_row_counts_returns_empty_when_no_normalize_step() -> None:
+    # Incremental runs with no new data leave last_normalize_info as None.
+    fake_no_trace = SimpleNamespace(last_trace=None)
+    fake_no_normalize = SimpleNamespace(
+        last_trace=SimpleNamespace(last_normalize_info=None)
+    )
+
+    assert pipeline._table_row_counts(fake_no_trace) == {}
+    assert pipeline._table_row_counts(fake_no_normalize) == {}
+
+
 def test_run_github_skips_when_no_repos(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

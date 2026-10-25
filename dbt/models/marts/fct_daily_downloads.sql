@@ -1,21 +1,15 @@
 -- PyPI daily download fact: one row per package per day. `repository_key` resolves
 -- through the `projects` seed (package -> repo) and the SCD2 join; nullable for
--- unmapped packages. Incremental (delete+insert on download_key) keeps it idempotent.
+-- unmapped packages.
 
 {{
     config(
-        materialized='incremental',
-        unique_key='download_key',
-        incremental_strategy='delete+insert',
-        on_schema_change='fail',
+        materialized='table',
     )
 }}
 
 with downloads as (
     select * from {{ ref('stg_pypi__downloads') }}
-    {% if is_incremental() %}
-    where {{ date_key('download_date') }} >= (select max(date_key) from {{ this }})
-    {% endif %}
 )
 
 select
