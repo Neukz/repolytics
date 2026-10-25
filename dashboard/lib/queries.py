@@ -365,9 +365,7 @@ def contributor_leaderboard(
     return run_query(conn, sql, [repos, limit])
 
 
-def retention_cohort(
-    conn: duckdb.DuckDBPyConnection, repos: list[str]
-) -> pd.DataFrame:
+def retention_cohort(conn: duckdb.DuckDBPyConnection, repos: list[str]) -> pd.DataFrame:
     """Monthly contributor retention: % of a first-active cohort active N months on.
 
     Filtered to the selected repositories via the mart's repository_key.
