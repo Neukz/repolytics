@@ -1,6 +1,26 @@
 version: 2
 
 models:
+  - name: int_repository_mapping
+    description: >
+      Maps the mutable GitHub repository name (`owner/name`, as stamped by dlt in
+      `_repo`) to the immutable GitHub `repository_id`. Used by
+      `scd2_repository_join` so facts resolve repository versions via the stable
+      ID rather than the mutable string, surviving renames and transfers.
+    columns:
+      - name: repo
+        description: Mutable repository full name (`owner/name`).
+        data_type: varchar
+        data_tests: [not_null]
+      - name: repository_id
+        description: Immutable numeric GitHub repository ID.
+        data_type: bigint
+        data_tests: [not_null]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [repo, repository_id]
+
   - name: int_contributor_activity
     description: >
       Tidy contributor activity event stream at username grain - one row per discrete
