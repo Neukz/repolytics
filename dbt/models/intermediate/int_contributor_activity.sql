@@ -1,9 +1,11 @@
 -- Contributor activity event stream at username grain: one row per activity event,
 -- reused for monthly aggregation. Each PR/issue contributes up to two events (opened
--- and merged/closed) so each lands in the month it happened.
+-- and merged/closed) so each lands in the month it happened. Repository is preserved
+-- so downstream facts can resolve repository_key per event.
 
 with commits as (
     select
+        repository,
         author_login as username,
         committed_at::date as event_date,
         'commit' as activity_type
@@ -13,6 +15,7 @@ with commits as (
 
 prs_opened as (
     select
+        repository,
         author_login as username,
         created_at::date as event_date,
         'pr_opened' as activity_type
@@ -22,6 +25,7 @@ prs_opened as (
 
 prs_merged as (
     select
+        repository,
         author_login as username,
         merged_at::date as event_date,
         'pr_merged' as activity_type
@@ -31,6 +35,7 @@ prs_merged as (
 
 issues_opened as (
     select
+        repository,
         author_login as username,
         created_at::date as event_date,
         'issue_opened' as activity_type
@@ -40,6 +45,7 @@ issues_opened as (
 
 issues_closed as (
     select
+        repository,
         author_login as username,
         closed_at::date as event_date,
         'issue_closed' as activity_type
@@ -60,6 +66,7 @@ events as (
 )
 
 select
+    repository,
     username,
     event_date,
     date_trunc('month', event_date) as event_month,

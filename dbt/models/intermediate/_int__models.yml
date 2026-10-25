@@ -27,6 +27,9 @@ models:
       event (commit, pr_opened, pr_merged, issue_opened, issue_closed). Reusable
       building block for monthly aggregation and PR/health metrics.
     columns:
+      - name: repository
+        description: GitHub repository full name (owner/name) the event belongs to.
+        data_tests: [not_null]
       - name: username
         description: GitHub login of the actor.
         data_tests: [not_null]
