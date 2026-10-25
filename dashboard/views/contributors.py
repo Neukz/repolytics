@@ -88,11 +88,10 @@ def render() -> None:
 
     st.subheader("Retention cohorts")
     st.caption(
-        "% of each first-active monthly cohort still active N months later. Spans all "
-        "tracked projects (activity is aggregated per month, not per repo), so this "
-        "view is not affected by the repository filter."
+        "% of each first-active monthly cohort still active N months later, restricted "
+        "to the selected repositories."
     )
-    coh = queries.retention_cohort(conn)
+    coh = queries.retention_cohort(conn, repos)
     if not coh.empty:
         coh = coh[coh["months_since"] <= 24].copy()
         recent = sorted(coh["cohort_month"].unique())[-36:]
@@ -120,10 +119,9 @@ def render() -> None:
     st.subheader("Monthly active contributors")
     st.caption(
         "Distinct contributors active each month, split into new (first-ever active "
-        "month) vs. returning. Spans all tracked projects (not affected by the "
-        "repository filter)."
+        "month) vs. returning, restricted to the selected repositories."
     )
-    acm = queries.active_contributors_monthly(conn)
+    acm = queries.active_contributors_monthly(conn, repos)
     c.line_or_fallback(
         acm,
         "month",

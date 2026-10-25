@@ -365,16 +365,19 @@ def contributor_leaderboard(
     return run_query(conn, sql, [repos, limit])
 
 
-def retention_cohort(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+def retention_cohort(
+    conn: duckdb.DuckDBPyConnection, repos: list[str]
+) -> pd.DataFrame:
     """Monthly contributor retention: % of a first-active cohort active N months on.
 
-    Repo-agnostic: the mart's grain is contributor x month with no repository_key, so
-    retention spans the whole tracked set and cannot be filtered by repo.
+    Filtered to the selected repositories via the mart's repository_key.
     """
     sql = """
     with active as (
-        select distinct contributor_key, date_trunc('month', event_month) as month
-        from marts.fct_contributor_activity_monthly
+        select distinct f.contributor_key, date_trunc('month', f.event_month) as month
+        from marts.fct_contributor_activity_monthly f
+        join marts.dim_repositories dr on f.repository_key = dr.repository_key
+        where dr.repository_name = any(?)
     ),
     cohort as (
         select contributor_key, min(month) as cohort_month
@@ -397,18 +400,22 @@ def retention_cohort(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     group by 1, 2, s.cohort_size
     order by 1, 2
     """
-    return run_query(conn, sql, [])
+    return run_query(conn, sql, [repos])
 
 
-def active_contributors_monthly(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+def active_contributors_monthly(
+    conn: duckdb.DuckDBPyConnection, repos: list[str]
+) -> pd.DataFrame:
     """Monthly active contributors, split into new vs. returning.
 
-    Repo-agnostic like `retention_cohort` (the mart has no repository grain).
+    Filtered to the selected repositories via the mart's repository_key.
     """
     sql = """
     with monthly as (
-        select distinct contributor_key, date_trunc('month', event_month) as month
-        from marts.fct_contributor_activity_monthly
+        select distinct f.contributor_key, date_trunc('month', f.event_month) as month
+        from marts.fct_contributor_activity_monthly f
+        join marts.dim_repositories dr on f.repository_key = dr.repository_key
+        where dr.repository_name = any(?)
     ),
     cohort as (
         select contributor_key, min(month) as first_month from monthly group by 1
@@ -420,7 +427,7 @@ def active_contributors_monthly(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame
     from monthly m join cohort c using (contributor_key)
     group by 1 order by 1
     """
-    return run_query(conn, sql, [])
+    return run_query(conn, sql, [repos])
 
 
 def multi_project_contributors(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:

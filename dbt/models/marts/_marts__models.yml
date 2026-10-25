@@ -493,8 +493,9 @@ models:
 
   - name: fct_contributor_activity_monthly
     description: >
-      Aggregate fact, one row per contributor per month, pivoting the activity event
-      stream into commit / PR / issue counts.
+      Aggregate fact, one row per contributor per repository per month, pivoting the
+      activity event stream into commit / PR / issue counts. Repository key is resolved
+      via the SCD2 half-open range on event_month so renames and transfers survive.
     data_tests:
       - dbt_expectations.expect_table_row_count_to_be_between:
           arguments:
@@ -504,7 +505,7 @@ models:
             severity: warn
     columns:
       - name: activity_key
-        description: Surrogate key, hash of contributor_key + event_month.
+        description: Surrogate key, hash of contributor_key + repository + event_month.
         data_type: varchar
         data_tests: [not_null, unique]
       - name: contributor_key
@@ -518,6 +519,15 @@ models:
                 field: contributor_key
       - name: username
         data_type: varchar
+      - name: repository_key
+        description: FK to dim_repositories (version current on the event month).
+        data_type: varchar
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_repositories')
+                field: repository_key
       - name: event_month
         description: First day of the activity month (timestamp).
         data_type: timestamp
@@ -531,17 +541,17 @@ models:
                 to: ref('dim_dates')
                 field: date_key
       - name: commits
-        description: Commits authored that month.
+        description: Commits authored that month in this repository.
         data_type: bigint
       - name: prs_opened
-        description: Pull requests opened that month.
+        description: Pull requests opened that month in this repository.
         data_type: bigint
       - name: prs_merged
-        description: Pull requests merged that month.
+        description: Pull requests merged that month in this repository.
         data_type: bigint
       - name: issues_opened
-        description: Issues opened that month.
+        description: Issues opened that month in this repository.
         data_type: bigint
       - name: issues_closed
-        description: Issues closed that month.
+        description: Issues closed that month in this repository.
         data_type: bigint
