@@ -310,13 +310,13 @@ models:
   - name: fct_releases
     description: >
       One row per published release. Repository resolved via the SCD2 half-open range
-      on the publish date. Incremental (delete+insert on release_key). An event fact
-      analyzed by counting (release cadence), with no additive measure.
+      on the publish date. An event fact analyzed by counting (release cadence), with
+      no additive measure.
     data_tests:
       - dbt_expectations.expect_table_row_count_to_be_between:
           arguments:
             min_value: 1
-            max_value: 10000000
+            max_value: 1000000
           config:
             severity: warn
     columns:
@@ -348,7 +348,7 @@ models:
       - name: published_at
         data_type: timestamp with time zone
       - name: _loaded_at
-        description: dlt load timestamp; the incremental watermark for this model.
+        description: dlt load timestamp; audit metadata for this row.
         data_type: timestamp with time zone
 
   - name: bridge_issue_labels
@@ -431,13 +431,12 @@ models:
   - name: fct_repository_metrics
     description: >
       Periodic-snapshot fact: one row per repository per capture (ingestion) day,
-      recording GitHub stars/forks/open_issues. Accumulated incrementally
-      (delete+insert on metric_key).
+      recording GitHub stars/forks/open_issues.
     data_tests:
       - dbt_expectations.expect_table_row_count_to_be_between:
           arguments:
             min_value: 1
-            max_value: 10000000
+            max_value: 1000000
           config:
             severity: error
     columns:

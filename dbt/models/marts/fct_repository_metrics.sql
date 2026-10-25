@@ -1,14 +1,10 @@
 -- Periodic-snapshot fact: one row per repository per capture day, recording the
 -- volatile stars/forks/open_issues. GitHub returns only current values (no history),
--- so each daily run appends that day's snapshot. Incremental (delete+insert on
--- metric_key) keeps same-day re-runs idempotent.
+-- so each daily run appends that day's snapshot.
 
 {{
     config(
-        materialized='incremental',
-        unique_key='metric_key',
-        incremental_strategy='delete+insert',
-        on_schema_change='fail',
+        materialized='table',
     )
 }}
 
@@ -17,10 +13,6 @@ with repositories as (
         *,
         cast(_loaded_at as date) as capture_date
     from {{ ref('stg_github__repositories') }}
-    {% if is_incremental() %}
-    -- Only (re)load capture days at or after the latest already loaded.
-    where {{ date_key('_loaded_at') }} >= (select max(date_key) from {{ this }})
-    {% endif %}
 )
 
 select
