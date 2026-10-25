@@ -22,8 +22,15 @@ def build_pipeline(settings: Settings) -> dlt.Pipeline:
 
 
 def _table_row_counts(pipeline: dlt.Pipeline) -> dict[str, int]:
-    """Rows loaded per table in the last run, excluding dlt's `_dlt_*` tables."""
-    counts = pipeline.last_trace.last_normalize_info.row_counts
+    """Rows loaded per table in the last run, excluding dlt's `_dlt_*` tables.
+
+    Returns `{}` when the run produced no new data and dlt therefore has no
+    normalize step populated (e.g. incremental GitHub cursors are up to date).
+    """
+    trace = pipeline.last_trace
+    if trace is None or trace.last_normalize_info is None:
+        return {}
+    counts = trace.last_normalize_info.row_counts or {}
     return {table: n for table, n in counts.items() if not table.startswith("_dlt")}
 
 
