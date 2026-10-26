@@ -12,7 +12,6 @@ select
     state,
     created_at,
     closed_at,
-    comments as comment_count,
-    _loaded_at
+    comments as comment_count
 from issues
 where pull_request__url is null

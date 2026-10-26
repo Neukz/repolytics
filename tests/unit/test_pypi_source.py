@@ -44,4 +44,3 @@ def test_rows_are_mapped_and_stamped() -> None:
     assert row["_package"] == "httpx"
     assert row["date"] == "2024-01-01"
     assert row["downloads"] == 12000
-    assert "_loaded_at" in row  # stamped provenance

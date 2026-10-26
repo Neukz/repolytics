@@ -20,7 +20,6 @@ select
     {{ date_key('rel.published_at') }} as date_key,
     rel.tag_name,
     rel.name as release_name,
-    rel.published_at,
-    rel._loaded_at
+    rel.published_at
 from releases rel
 {{ scd2_repository_join('rel.repository', 'rel.published_at::date') }}

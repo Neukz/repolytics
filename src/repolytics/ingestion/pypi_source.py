@@ -11,8 +11,6 @@ from datetime import date
 
 import dlt
 
-from repolytics.ingestion._meta import stamp
-
 TABLE = "bigquery-public-data.pypi.file_downloads"
 
 # Bulk-mirror installers excluded to match pypistats' "without_mirrors" definition.
@@ -90,15 +88,12 @@ def pypi_source(
         primary_key=["_package", "date"],
     )
     def downloads() -> Iterator[dict]:
-        apply = stamp()  # adds _loaded_at only; package is a real column
         iso = target_date.isoformat()
         for row in runner(QUERY, _query_parameters(target_date, packages)):
-            yield apply(
-                {
-                    "_package": row["package"],
-                    "date": iso,
-                    "downloads": row["downloads"],
-                }
-            )
+            yield {
+                "_package": row["package"],
+                "date": iso,
+                "downloads": row["downloads"],
+            }
 
     return downloads
