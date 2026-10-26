@@ -10,6 +10,8 @@ from repolytics.ingestion import pipeline
 
 
 def test_table_row_counts_filters_dlt_internal_tables() -> None:
+    # Fast, isolated test of the filtering logic. A real-pipeline guard lives in
+    # tests/integration/test_pipeline.py to catch dlt attribute renames.
     fake = SimpleNamespace(
         last_trace=SimpleNamespace(
             last_normalize_info=SimpleNamespace(

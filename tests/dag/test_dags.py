@@ -11,7 +11,10 @@ DAGS_DIR = REPO_ROOT / "dags"
 MANIFEST = REPO_ROOT / "dbt" / "target" / "manifest.json"
 
 if not MANIFEST.exists():
-    raise RuntimeError(f"dbt manifest not found at {MANIFEST} - run `dbt parse` first.")
+    pytest.skip(
+        f"dbt manifest not found at {MANIFEST} - run `dbt parse` first.",
+        allow_module_level=True,
+    )
 
 # Cosmos reads this at DAG import time; set it before building the bag.
 os.environ.setdefault("DBT_PROJECT_DIR", str(REPO_ROOT / "dbt"))
@@ -23,6 +26,10 @@ DAG_IDS = [dag.dag_id for dag in ALL_DAGS]
 
 def test_no_import_errors() -> None:
     assert DAG_BAG.import_errors == {}, DAG_BAG.import_errors
+
+
+def test_dag_bag_is_not_empty() -> None:
+    assert ALL_DAGS, "DagBag produced no DAGs; policy tests would pass vacuously"
 
 
 @pytest.mark.parametrize("dag", ALL_DAGS, ids=DAG_IDS)
