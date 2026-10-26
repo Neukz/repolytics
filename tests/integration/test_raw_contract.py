@@ -55,7 +55,7 @@ def test_metadata_columns_present(loaded_db: duckdb.DuckDBPyConnection) -> None:
             "where table_schema = 'raw' and table_name = 'commits'"
         ).fetchall()
     }
-    assert {"_repo", "_loaded_at", "commit__author__date"} <= commit_cols
+    assert {"_repo", "_dlt_load_id", "commit__author__date"} <= commit_cols
 
     repo = loaded_db.execute("select distinct _repo from raw.commits").fetchone()[0]
     assert repo == REPO
@@ -74,7 +74,7 @@ def test_downloads_contract(loaded_db: duckdb.DuckDBPyConnection) -> None:
             "where table_schema = 'raw' and table_name = 'downloads'"
         ).fetchall()
     }
-    assert {"_package", "date", "downloads", "_loaded_at"} <= cols
+    assert {"_package", "date", "downloads", "_dlt_load_id"} <= cols
 
 
 def test_pull_request_marker_column_exists(

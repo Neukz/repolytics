@@ -10,9 +10,11 @@
 
 with repositories as (
     select
-        *,
-        cast(_loaded_at as date) as capture_date
-    from {{ ref('stg_github__repositories') }}
+        r.*,
+        cast(dl.inserted_at as date) as capture_date
+    from {{ ref('stg_github__repositories') }} r
+    join {{ source('github', '_dlt_loads') }} dl
+        on r._dlt_load_id = dl.load_id
 )
 
 select

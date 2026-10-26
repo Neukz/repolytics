@@ -23,7 +23,7 @@ select
     c.commit__author__email as author_email,
     c.commit__author__date as committed_at,
     c.commit__message as message,
-    c._loaded_at
+    c._dlt_load_id
 from commits c
 left join parent_counts p on c._dlt_id = p._dlt_parent_id
 where coalesce(p.parent_count, 0) <= 1

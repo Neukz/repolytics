@@ -14,7 +14,7 @@ select
     i.state = 'closed' as is_closed,
     case
         when i.closed_at is not null
-            then datediff('hour', i.created_at, i.closed_at)
+            then date_diff('second', i.created_at, i.closed_at) / 3600.0
     end as time_to_close_hours,
     i.comment_count
 from issues i

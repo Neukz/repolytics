@@ -11,6 +11,5 @@ select
     user__login as author_login,
     state,
     created_at,
-    merged_at,
-    _loaded_at
+    merged_at
 from pull_requests

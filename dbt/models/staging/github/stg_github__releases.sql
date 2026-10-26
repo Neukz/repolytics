@@ -9,6 +9,5 @@ select
     _repo as repository,
     tag_name,
     name,
-    published_at,
-    _loaded_at
+    published_at
 from releases

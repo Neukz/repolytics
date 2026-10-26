@@ -33,6 +33,6 @@ select
     t.topics,
     r.created_at,
     r.updated_at,
-    r._loaded_at
+    r._dlt_load_id
 from repositories r
 left join topics t on r._dlt_id = t._dlt_parent_id

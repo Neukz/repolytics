@@ -14,7 +14,7 @@ select
     p.merged_at is not null as is_merged,
     case
         when p.merged_at is not null
-            then datediff('hour', p.created_at, p.merged_at)
+            then date_diff('second', p.created_at, p.merged_at) / 3600.0
     end as time_to_merge_hours
 from pull_requests p
 {{ scd2_repository_join('p.repository', 'p.created_at::date') }}

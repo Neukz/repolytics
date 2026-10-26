@@ -9,6 +9,8 @@ models:
         data_tests: [not_null, unique]
       - name: repository_name
         data_tests: [not_null]
+      - name: _dlt_load_id
+        description: dlt load identifier; used to resolve the snapshot's load timestamp from _dlt_loads.
 
   - name: stg_github__commits
     description: One cleaned row per non-merge commit.
@@ -17,6 +19,8 @@ models:
         data_tests: [not_null]
       - name: repository
         data_tests: [not_null]
+      - name: _dlt_load_id
+        description: dlt load identifier; used as the incremental watermark for fct_commits.
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:

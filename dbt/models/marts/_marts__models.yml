@@ -178,9 +178,9 @@ models:
         data_type: varchar
       - name: committed_at
         data_type: timestamp with time zone
-      - name: _loaded_at
-        description: dlt load timestamp; the incremental watermark for this model.
-        data_type: timestamp with time zone
+      - name: _dlt_load_id
+        description: dlt load identifier; used to resolve the incremental watermark via _dlt_loads.inserted_at.
+        data_type: varchar
 
   - name: fct_pull_requests
     description: One row per pull request. Repository resolved via the SCD2 half-open range on the PR open date.
@@ -231,8 +231,8 @@ models:
       - name: is_merged
         data_type: boolean
       - name: time_to_merge_hours
-        description: Hours from open to merge; null for unmerged PRs.
-        data_type: bigint
+        description: Elapsed hours from open to merge; null for unmerged PRs.
+        data_type: double
         data_tests:
           - dbt_expectations.expect_column_values_to_be_between:
               arguments:
@@ -290,8 +290,8 @@ models:
       - name: is_closed
         data_type: boolean
       - name: time_to_close_hours
-        description: Hours from open to close; null for open issues.
-        data_type: bigint
+        description: Elapsed hours from open to close; null for open issues.
+        data_type: double
         data_tests:
           - dbt_expectations.expect_column_values_to_be_between:
               arguments:
@@ -346,9 +346,6 @@ models:
       - name: release_name
         data_type: varchar
       - name: published_at
-        data_type: timestamp with time zone
-      - name: _loaded_at
-        description: dlt load timestamp; audit metadata for this row.
         data_type: timestamp with time zone
 
   - name: bridge_issue_labels
