@@ -13,7 +13,7 @@ import pytest
 from tests.support.warehouse import PACKAGE, REPO, load_raw_fixtures
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def loaded_db(tmp_duckdb_path: Path) -> Iterator[duckdb.DuckDBPyConnection]:
     load_raw_fixtures(tmp_duckdb_path)
     conn = duckdb.connect(str(tmp_duckdb_path))
