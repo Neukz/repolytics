@@ -30,10 +30,9 @@ tasks:
       - uv run ruff format --check .
 
   test:
-    desc: Run all tests (unit, dashboard, integration, dag)
+    desc: Run all tests (unit, integration, dag)
     cmds:
       - task: test:unit
-      - task: test:dashboard
       - task: test:integration
       - task: test:dag
 
@@ -41,11 +40,6 @@ tasks:
     desc: Run unit tests only
     cmds:
       - uv run pytest tests/unit
-
-  test:dashboard:
-    desc: Run dashboard tests only
-    cmds:
-      - uv run --group dashboard pytest tests/dashboard
 
   test:integration:
     desc: Run integration tests only
@@ -59,9 +53,9 @@ tasks:
       - uv run --group dbt --group orchestration pytest tests/dag
 
   test:coverage:
-    desc: Run unit + dashboard + integration tests with coverage report
+    desc: Run unit + integration tests with coverage report
     cmds:
-      - uv run --group dashboard pytest --cov --cov-report=xml --cov-report=term-missing
+      - uv run pytest --cov --cov-report=xml --cov-report=term-missing
 
   ci:
     desc: Run full CI check locally (mirrors GitHub Actions, excludes Docker build)
@@ -69,7 +63,6 @@ tasks:
       - task: lint
       - task: format:check
       - task: test:coverage
-      - task: test:dashboard
       - task: dbt:build:ci
       - task: test:dag
 

@@ -1,50 +1,34 @@
--- Type 1 contributor dimension: one row per GitHub login, rebuilt each run.
--- Stats are commit/PR-based; issue-only authors appear with zeroed counts.
+-- Type 1 contributor dimension: one row per GitHub login, rebuilt each run. Derived
+-- entirely from int_contributor_activity. Stats are commit/PR-based; issue-only
+-- authors appear with zeroed counts.
 
-with commits as (
-    select
-        author_login as username,
-        repository,
-        committed_at
-    from {{ ref('stg_github__commits') }}
-    where author_login is not null
-),
-
-prs as (
-    select
-        author_login as username,
-        merged_at
-    from {{ ref('stg_github__pull_requests') }}
-    where author_login is not null
+with events as (
+    select * from {{ ref('int_contributor_activity') }}
 ),
 
 contributors as (
-    select username from commits
-    union
-    select username from prs
-    union
-    select author_login as username
-    from {{ ref('stg_github__issues') }}
-    where author_login is not null
+    select distinct username from events
 ),
 
 commit_stats as (
     select
         username,
-        min(committed_at::date) as first_commit_date,
-        max(committed_at::date) as last_commit_date,
+        min(event_date) as first_commit_date,
+        max(event_date) as last_commit_date,
         count(*) as total_commits,
         count(distinct repository) as distinct_projects_count
-    from commits
+    from events
+    where activity_type = 'commit'
     group by username
 ),
 
 pr_stats as (
     select
         username,
-        count(*) as total_prs_opened,
-        count(*) filter (where merged_at is not null) as total_prs_merged
-    from prs
+        count(*) filter (where activity_type = 'pr_opened') as total_prs_opened,
+        count(*) filter (where activity_type = 'pr_merged') as total_prs_merged
+    from events
+    where activity_type in ('pr_opened', 'pr_merged')
     group by username
 ),
 
@@ -59,7 +43,8 @@ primary_project as (
                 partition by username
                 order by count(*) desc, repository
             ) as rn
-        from commits
+        from events
+        where activity_type = 'commit'
         group by username, repository
     )
     where rn = 1

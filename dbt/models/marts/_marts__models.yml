@@ -38,7 +38,10 @@ models:
         data_type: bigint
 
   - name: dim_contributors
-    description: Type 1 contributor profiles aggregated across commits and pull requests.
+    description: >
+      Type 1 contributor profiles, aggregated from the int_contributor_activity event
+      stream so the dimension and fct_contributor_activity_monthly share one source
+      of truth. Commit/PR-based; issue-only authors appear with zeroed counts.
     data_tests:
       - dbt_expectations.expect_table_row_count_to_be_between:
           arguments:
@@ -102,8 +105,6 @@ models:
       - name: language
         data_type: varchar
       - name: license_spdx
-        data_type: varchar
-      - name: topics
         data_type: varchar
       - name: created_at
         data_type: timestamp with time zone
@@ -378,6 +379,35 @@ models:
                 to: ref('dim_labels')
                 field: label_key
 
+  - name: bridge_repository_topics
+    description: >
+      Bridge for the repository<->topic many-to-many. Grain - one row per
+      (repository, topic). GitHub exposes only current topics, so rows attach to the
+      current dim_repositories version.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [repository_key, topic]
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 1
+            max_value: 10000000
+          config:
+            severity: warn
+    columns:
+      - name: repository_key
+        data_type: varchar
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_repositories')
+                field: repository_key
+      - name: topic
+        description: A single GitHub topic (degenerate dimension - a topic has no attributes).
+        data_type: varchar
+        data_tests: [not_null]
+
   - name: fct_daily_downloads
     description: >
       One row per package per day (PyPI non-mirror downloads).
@@ -428,7 +458,8 @@ models:
   - name: fct_repository_metrics
     description: >
       Periodic-snapshot fact: one row per repository per capture (ingestion) day,
-      recording GitHub stars/forks/open_issues.
+      recording GitHub stars/forks/open_issues. `is_latest` marks the most recent
+      capture per repository so consumers read current values without a window function.
     data_tests:
       - dbt_expectations.expect_table_row_count_to_be_between:
           arguments:
@@ -487,6 +518,127 @@ models:
           - dbt_utils.expression_is_true:
               arguments:
                 expression: ">= 0"
+      - name: is_latest
+        description: >
+          True on the most recent capture day for the repository. Exactly one row per
+          repository_id is flagged - asserted by assert_one_latest_metric_per_repository.
+        data_type: boolean
+        data_tests: [not_null]
+
+  - name: fct_repository_health
+    description: >
+      Composite project-health fact: one row per repository, carrying the five raw
+      signals, their 0-1 component scores, and the weighted 0-100 health_score.
+      Rebuilt each run, so it reports health as of the last run (see date_key).
+    data_tests:
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          arguments:
+            min_value: 1
+            max_value: 1000000
+          config:
+            severity: error
+    columns:
+      - name: health_key
+        description: Surrogate key, hash of repository_id + the computation date.
+        data_type: varchar
+        data_tests: [not_null, unique]
+      - name: repository_id
+        data_type: bigint
+        data_tests: [not_null, unique]
+      - name: repository_name
+        data_type: varchar
+        data_tests: [not_null]
+      - name: repository_key
+        description: FK to dim_repositories (version current on the computation date).
+        data_type: varchar
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_repositories')
+                field: repository_key
+      - name: date_key
+        description: FK to dim_dates (the day the score was computed, YYYYMMDD).
+        data_type: integer
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_dates')
+                field: date_key
+      - name: commits_90d
+        description: Commits in the trailing 90 days.
+        data_type: bigint
+        data_tests: [not_null]
+      - name: pr_merge_rate
+        description: Share of PRs opened in the trailing 365 days that were merged.
+        data_type: double
+        data_tests: [not_null]
+      - name: issue_close_rate
+        description: Share of issues opened in the trailing 365 days that are closed.
+        data_type: double
+        data_tests: [not_null]
+      - name: days_since_release
+        description: Days since the latest release; null when the repo has never released.
+        data_type: bigint
+      - name: stars
+        description: Current stargazer count.
+        data_type: bigint
+        data_tests: [not_null]
+      - name: c_activity
+        description: Activity component (0-1), saturating log of commits_90d.
+        data_type: double
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: c_pr_responsiveness
+        description: PR responsiveness component (0-1), the merge rate clipped.
+        data_type: double
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: c_issue_management
+        description: Issue management component (0-1), the close rate clipped.
+        data_type: double
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: c_release_recency
+        description: Release recency component (0-1), exponential decay on a 180-day half-life.
+        data_type: double
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: c_popularity
+        description: Popularity component (0-1), saturating log of stars.
+        data_type: double
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 1
+      - name: health_score
+        description: Weighted blend of the five components, scaled to 0-100.
+        data_type: double
+        data_tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              arguments:
+                min_value: 0
+                max_value: 100
 
   - name: fct_contributor_activity_monthly
     description: >

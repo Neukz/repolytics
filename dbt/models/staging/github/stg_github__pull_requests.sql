@@ -11,5 +11,7 @@ select
     user__login as author_login,
     state,
     created_at,
-    merged_at
+    merged_at,
+    -- dlt row id; the parent key the `pull_requests__labels` child rows point at.
+    _dlt_id
 from pull_requests

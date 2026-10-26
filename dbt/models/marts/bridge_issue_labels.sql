@@ -2,7 +2,7 @@
 -- Recomputes the issue surrogate key the same way as fct_issues.
 
 with issue_labels as (
-    select * from {{ ref('stg_github__issue_labels') }}
+    select * from {{ ref('int_issue_labels') }}
 )
 
 select distinct

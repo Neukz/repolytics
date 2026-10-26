@@ -12,6 +12,8 @@ select
     state,
     created_at,
     closed_at,
-    comments as comment_count
+    comments as comment_count,
+    -- dlt row id; the parent key the `issues__labels` child rows point at.
+    _dlt_id
 from issues
 where pull_request__url is null

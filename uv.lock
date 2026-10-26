@@ -2762,7 +2762,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dashboard = [
-    { name = "numpy" },
     { name = "pandas" },
     { name = "streamlit" },
 ]
@@ -2790,7 +2789,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dashboard = [
-    { name = "numpy", specifier = ">=2.5.0" },
     { name = "pandas", specifier = ">=3.0.3" },
     { name = "streamlit", specifier = ">=1.58.0" },
 ]

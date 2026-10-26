@@ -75,7 +75,9 @@ repolytics/
 
 ## Data model
 
-The marts are a **fact constellation (galaxy schema)** &ndash; multiple fact tables sharing conformed dimensions. `dim_repositories`, `dim_contributors`, and `dim_dates` are the conformed spine: `dim_dates` joins every fact, `dim_repositories` all but the contributor-activity fact, and `dim_contributors` the contributor-grained facts (commits, PRs, issues, monthly activity); `dim_labels` sits apart, reached only through the `bridge_issue_labels` many-to-many bridge.
+The three dbt layers have strict, non-overlapping jobs. **Staging** is one-to-one with each source table &ndash; rename, cast, filter, nothing else; dlt child tables (topics, labels) are flattened but left keyed on the dlt parent id. **Intermediate** owns the reassembly: the parent/child rejoins, the mutable-name-to-immutable-id resolution behind the SCD2 join, the contributor event stream shared by the dimension and the monthly fact, and the health-score inputs. **Marts** is the dimensional model the dashboard reads.
+
+The marts are a **fact constellation (galaxy schema)** &ndash; multiple fact tables sharing conformed dimensions. `dim_repositories`, `dim_contributors`, and `dim_dates` are the conformed spine: `dim_dates` joins every fact, `dim_repositories` every fact (nullable only for unmapped PyPI downloads), and `dim_contributors` the contributor-grained facts (commits, PRs, issues, monthly activity); `dim_labels` sits apart, reached only through the `bridge_issue_labels` many-to-many bridge, and `bridge_repository_topics` resolves the repository-to-topic many-to-many.
 
 ```mermaid
 erDiagram
@@ -92,6 +94,7 @@ erDiagram
     fct_issues }o--|| dim_dates : ""
 
     fct_contributor_activity_monthly }o--|| dim_contributors : ""
+    fct_contributor_activity_monthly }o--|| dim_repositories : ""
     fct_contributor_activity_monthly }o--|| dim_dates : ""
 
     fct_releases }o--|| dim_repositories : ""
@@ -100,11 +103,16 @@ erDiagram
     fct_repository_metrics }o--|| dim_repositories : ""
     fct_repository_metrics }o--|| dim_dates : ""
 
+    fct_repository_health }o--|| dim_repositories : ""
+    fct_repository_health }o--|| dim_dates : ""
+
     fct_daily_downloads }o--o| dim_repositories : ""
     fct_daily_downloads }o--|| dim_dates : ""
 
     bridge_issue_labels }o--|| fct_issues : ""
     bridge_issue_labels }o--|| dim_labels : ""
+
+    bridge_repository_topics }o--|| dim_repositories : ""
 ```
 
 Crow's foot cardinality; a circle on the dimension side marks a nullable (optional) foreign key (e.g. commits with no GitHub-login author, or downloads for an unmapped package).
@@ -119,12 +127,14 @@ Fact grains and the dimensions each references:
 | `fct_releases`                     | one row per release           | repository, date                   |
 | `fct_daily_downloads`              | one row per package/day       | repository, date                   |
 | `fct_repository_metrics`           | one row per repo/snapshot day | repository, date                   |
-| `fct_contributor_activity_monthly` | one row per contributor/month | contributor, date                  |
+| `fct_repository_health`            | one row per repo              | repository, date                   |
+| `fct_contributor_activity_monthly` | one row per contributor/repo/month | repository, contributor, date |
 
-Two modeling choices worth calling out:
+Three modeling choices worth calling out:
 
-- **`dim_repositories` is SCD Type 2** &ndash; repository attributes are versioned via a dbt snapshot, so each fact resolves the repository version that was current *when the event occurred* (half-open date-range join). Range integrity is enforced with `dbt_utils.mutually_exclusive_ranges`.
-- **Facts are incremental where it matters** &ndash; e.g. `fct_commits` and `fct_daily_downloads` use dbt's merge strategy for idempotent, cheap daily runs.
+- **`dim_repositories` is SCD Type 2** &ndash; repository attributes are versioned via a dbt snapshot, so each fact resolves the repository version that was current *when the event occurred* (half-open date-range join, keyed on the immutable `repository_id`). Range integrity is enforced with `dbt_utils.mutually_exclusive_ranges`.
+- **Only `fct_commits` is incremental** &ndash; using `delete+insert` on dlt load time, because git author dates aren't monotonic. Every other fact is a table (inherited from the marts config) since volumes at this scale are small.
+- **The composite health score is a mart, not app code** &ndash; `fct_repository_health` materializes the five weighted signals and the 0-100 score, so the headline metric is contract-enforced, dbt-tested, and reusable beyond the dashboard. `fct_repository_metrics` carries an `is_latest` flag so consumers read current stars/forks without re-deriving "latest snapshot per repo".
 
 ## Setup
 
@@ -220,14 +230,12 @@ task ci      # mirrors the GitHub Actions gate locally
 - **DuckDB is single-writer.** The DAG sets `max_active_tasks=1` and `max_active_runs=1` to serialize everything, because a DuckDB file allows only one writer at a time. That rules out concurrent ingestion/transform and horizontal scaling; the intended escape hatch is swapping DuckDB for a cloud warehouse (the dbt SQL is largely portable).
 - **GitHub has no true historical backfill.** The dlt incremental cursor is global (not per-interval), so ingestion fetches current-state-forward and skips historical backfill runs. Full history accumulates through `write_disposition="merge"` over successive daily runs &ndash; it can't replay an arbitrary past window on demand the way PyPI can.
 - **PyPI backfill bills BigQuery.** Each day is a query against the public dataset. It's free under 1 TB/month, but a wide multi-year backfill will consume quota, so it's partition-pruned to one day per run.
-- **Popularity/health facts start as a single snapshot.** `fct_repository_metrics` captures one row per repo per run, so stars/forks trends and the health-score trajectory only become meaningful after several daily runs accrue. The dashboard degrades gracefully (current value + note) until then.
-- **The health score is computed in the app, not persisted.** It lives in `dashboard/lib/health.py`, which means it isn't materialized or covered by dbt tests (see [Future work](#future-work)).
-- **Test coverage is limited.** Coverage is scoped to `src/repolytics/` (config + dlt sources, per `[tool.coverage.run]`); the Streamlit dashboard and the Airflow DAG at runtime are untested.
+- **Popularity/health facts start as a single snapshot.** `fct_repository_metrics` captures one row per repo per run, so stars/forks trends only become meaningful after several daily runs accrue. The dashboard degrades gracefully (current value + note) until then.
+- **`fct_repository_health` keeps no history.** Its trailing windows are relative to the run date, so the mart is rebuilt as one row per repository and reports health *as of* the last run. Tracking the score's trajectory would mean appending a row per day instead.
+- **Test coverage is scoped.** pytest coverage measures `src/repolytics/` (config + dlt sources, per `[tool.coverage.run]`). The transformation layer is covered by dbt tests, and the dashboard contains no business logic of its own. What is not exercised by the test suite is Streamlit rendering and the Airflow DAG at runtime.
 
 ## Future work
 
 - **Scale the seed to 10-15 projects.** `dbt/seeds/projects.csv` currently tracks 2 repos; more projects unlock the comparative analytics the marts are built for &ndash; cross-project bus factor, retention curves, and downloads-vs-stars correlation.
-- **Graduate the health score to `fct_repository_health`.** Move the composite metric out of `dashboard/lib/health.py` into a materialized, contract-and-test-covered mart so it's reusable beyond the dashboard and versioned with the rest of the model.
 - **Migrate to a cloud warehouse** to lift the single-writer constraint, enable concurrent serving, and separate storage from compute. The staging/marts SQL is mostly portable; the dlt destination and dbt profile are the main changes.
-- **Add a weekly aggregation DAG** writing rollups (retention cohorts, rolling health) into a `metrics` schema &ndash; cheaper for the dashboard than recomputing over the atomic facts on every query.
-- **Tighten staging-layer boundaries.** A few staging models reassemble dlt parent/child tables via joins that strictly belong in the intermediate layer, and `dim_contributors` re-aggregates staging in parallel with `int_contributor_activity`; deriving both from one event stream would give contributor activity a single source of truth.
+- **Add a weekly aggregation DAG** writing rollups (retention cohorts, rolling health) into the warehouse &ndash; cheaper for the dashboard than recomputing over the atomic facts on every query.

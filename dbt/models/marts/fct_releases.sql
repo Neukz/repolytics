@@ -1,12 +1,6 @@
 -- Release activity fact: one row per published release, resolving repository via the
 -- SCD2 join on the publish date. No additive measure - analyze by counting (cadence).
 
-{{
-    config(
-        materialized='table',
-    )
-}}
-
 with releases as (
     select * from {{ ref('stg_github__releases') }}
     -- Drafts have no publish date; exclude them so date_key / repository_key resolve.

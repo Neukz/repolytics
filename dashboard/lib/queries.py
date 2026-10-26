@@ -44,11 +44,9 @@ def overview_kpis(conn: duckdb.DuckDBPyConnection, repos: list[str]) -> pd.DataF
         where repository_name = any(?)
     ),
     latest_metrics as (
-        select m.repository_name, m.stars, m.forks,
-               row_number() over (partition by m.repository_name
-                                  order by m.date_key desc) as rn
-        from marts.fct_repository_metrics m
-        where m.repository_name = any(?)
+        select stars, forks
+        from marts.fct_repository_metrics
+        where is_latest and repository_name = any(?)
     )
     select
         (select count(distinct repository_name) from sel) as repos,
@@ -68,8 +66,8 @@ def overview_kpis(conn: duckdb.DuckDBPyConnection, repos: list[str]) -> pd.DataF
            as issue_close_rate,
         (select count(*)
            from marts.fct_releases join sel using (repository_key)) as releases,
-        (select coalesce(sum(stars), 0) from latest_metrics where rn = 1) as stars,
-        (select coalesce(sum(forks), 0) from latest_metrics where rn = 1) as forks
+        (select coalesce(sum(stars), 0) from latest_metrics) as stars,
+        (select coalesce(sum(forks), 0) from latest_metrics) as forks
     """
     return run_query(conn, sql, [repos, repos])
 
@@ -78,22 +76,25 @@ def repo_snapshot(conn: duckdb.DuckDBPyConnection, repos: list[str]) -> pd.DataF
     """Current per-repo attributes + latest stars/forks/open_issues snapshot."""
     sql = """
     with latest as (
-        select repository_name, stars, forks, open_issues,
-               row_number() over (
-                   partition by repository_name order by date_key desc
-               ) as rn
+        select repository_name, stars, forks, open_issues
         from marts.fct_repository_metrics
-        where repository_name = any(?)
+        where is_latest
+    ),
+    topics as (
+        select repository_key, string_agg(topic, ', ' order by topic) as topics
+        from marts.bridge_repository_topics
+        group by repository_key
     )
     select
-        d.repository_name, d.language, d.license_spdx, d.topics, d.created_at,
+        d.repository_name, d.language, d.license_spdx, t.topics, d.created_at,
         l.stars, l.forks, l.open_issues
     from marts.dim_repositories d
-    left join latest l on d.repository_name = l.repository_name and l.rn = 1
+    left join latest l on d.repository_name = l.repository_name
+    left join topics t on d.repository_key = t.repository_key
     where d.is_current and d.repository_name = any(?)
     order by l.stars desc nulls last
     """
-    return run_query(conn, sql, [repos, repos])
+    return run_query(conn, sql, [repos])
 
 
 def commits_per_month(
@@ -152,12 +153,9 @@ def downloads_vs_stars(
     """Latest-day downloads vs current stars per repo (popularity correlation)."""
     sql = """
     with latest_stars as (
-        select repository_name, repository_key, stars,
-               row_number() over (
-                   partition by repository_name order by date_key desc
-               ) as rn
+        select repository_name, stars
         from marts.fct_repository_metrics
-        where repository_name = any(?)
+        where is_latest and repository_name = any(?)
     ),
     latest_dl as (
         select dr.repository_name, f.download_count,
@@ -170,78 +168,24 @@ def downloads_vs_stars(
     select s.repository_name, s.stars, coalesce(dl.download_count, 0) as downloads
     from latest_stars s
     left join latest_dl dl on s.repository_name = dl.repository_name and dl.rn = 1
-    where s.rn = 1
     """
     return run_query(conn, sql, [repos])
 
 
-def health_components(
+def repository_health(
     conn: duckdb.DuckDBPyConnection, repos: list[str]
 ) -> pd.DataFrame:
-    """Raw per-repo inputs to the composite health score (see lib.health)."""
+    """Composite health score + its five components."""
     sql = """
-    with base as (
-        select repository_name from marts.dim_repositories
-        where is_current and repository_name = any(?)
-    ),
-    commits90 as (
-        select dr.repository_name, count(*) as commits_90d
-        from marts.fct_commits c
-        join marts.dim_repositories dr on c.repository_key = dr.repository_key
-        where c.committed_at >= now() - interval '90 days'
-          and dr.repository_name = any(?)
-        group by 1
-    ),
-    pr12 as (
-        select dr.repository_name, avg(p.is_merged::int) as pr_merge_rate
-        from marts.fct_pull_requests p
-        join marts.dim_dates d on p.opened_date_key = d.date_key
-        join marts.dim_repositories dr on p.repository_key = dr.repository_key
-        where d.full_date >= now() - interval '365 days'
-          and dr.repository_name = any(?)
-        group by 1
-    ),
-    iss12 as (
-        select dr.repository_name, avg(i.is_closed::int) as issue_close_rate
-        from marts.fct_issues i
-        join marts.dim_dates d on i.opened_date_key = d.date_key
-        join marts.dim_repositories dr on i.repository_key = dr.repository_key
-        where d.full_date >= now() - interval '365 days'
-          and dr.repository_name = any(?)
-        group by 1
-    ),
-    rel as (
-        select dr.repository_name,
-               date_diff('day', max(r.published_at), now()) as days_since_release
-        from marts.fct_releases r
-        join marts.dim_repositories dr on r.repository_key = dr.repository_key
-        where dr.repository_name = any(?)
-        group by 1
-    ),
-    stars as (
-        select repository_name, stars,
-               row_number() over (
-                   partition by repository_name order by date_key desc
-               ) as rn
-        from marts.fct_repository_metrics
-        where repository_name = any(?)
-    )
-    select b.repository_name,
-           coalesce(c.commits_90d, 0) as commits_90d,
-           coalesce(p.pr_merge_rate, 0) as pr_merge_rate,
-           coalesce(i.issue_close_rate, 0) as issue_close_rate,
-           r.days_since_release,
-           coalesce(s.stars, 0) as stars
-    from base b
-    left join commits90 c on b.repository_name = c.repository_name
-    left join pr12 p on b.repository_name = p.repository_name
-    left join iss12 i on b.repository_name = i.repository_name
-    left join rel r on b.repository_name = r.repository_name
-    left join stars s on b.repository_name = s.repository_name and s.rn = 1
-    order by b.repository_name
+    select repository_name, health_score,
+           c_activity, c_pr_responsiveness, c_issue_management,
+           c_release_recency, c_popularity,
+           commits_90d, pr_merge_rate, issue_close_rate, days_since_release, stars
+    from marts.fct_repository_health
+    where repository_name = any(?)
+    order by repository_name
     """
-    # One bind per `any(?)`: base + commits90 + pr12 + iss12 + rel + stars.
-    return run_query(conn, sql, [repos, repos, repos, repos, repos, repos])
+    return run_query(conn, sql, [repos])
 
 
 # ----- Development velocity -----

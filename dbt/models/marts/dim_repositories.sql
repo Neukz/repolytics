@@ -11,7 +11,6 @@ with versioned as (
         description,
         language,
         license_spdx,
-        topics,
         created_at,
         updated_at,
         -- Full-resolution timestamp keys the surrogate so it stays unique across
@@ -39,7 +38,6 @@ select
     description,
     language,
     license_spdx,
-    topics,
     created_at,
     updated_at,
     valid_from,
