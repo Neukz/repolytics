@@ -21,6 +21,83 @@ models:
           arguments:
             combination_of_columns: [repo, repository_id]
 
+  - name: int_repository_topics
+    description: >
+      Resolves dlt's `repositories__topics` child rows to their repository.
+      Grain - one row per (repository, topic).
+    columns:
+      - name: repository_id
+        description: Immutable numeric GitHub repository ID.
+        data_tests: [not_null]
+      - name: repository_name
+        description: Repository full name (`owner/name`).
+        data_tests: [not_null]
+      - name: topic
+        description: A single GitHub topic on the repository.
+        data_tests: [not_null]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [repository_id, topic]
+
+  - name: int_issue_labels
+    description: >
+      Rejoins dlt's `issues__labels` child rows to their parent issue. Joining
+      through stg_github__issues inherits that model's pull-request filter, so the
+      rule is stated in exactly one place.
+    columns:
+      - name: repository
+        description: Repository full name (`owner/name`).
+        data_tests: [not_null]
+      - name: issue_number
+        description: Issue number within its repository.
+        data_tests: [not_null]
+      - name: label_name
+        data_tests: [not_null]
+      - name: label_color
+        description: Hex color of the label as configured on the repository.
+
+  - name: int_pr_labels
+    description: >
+      Rejoins dlt's `pull_requests__labels` child rows to their parent pull request.
+    columns:
+      - name: repository
+        description: Repository full name (`owner/name`).
+        data_tests: [not_null]
+      - name: pr_number
+        description: Pull-request number within its repository.
+        data_tests: [not_null]
+      - name: label_name
+        data_tests: [not_null]
+      - name: label_color
+        description: Hex color of the label as configured on the repository.
+
+  - name: int_repository_health_components
+    description: >
+      The five raw signals behind the composite health score, one row per repository -
+      recent commit activity, PR merge rate, issue close rate, release recency, and
+      stars. Trailing windows are relative to `current_date`, so the model describes
+      health as of the last run.
+    columns:
+      - name: repository_id
+        data_tests: [not_null, unique]
+      - name: repository_name
+        data_tests: [not_null]
+      - name: commits_90d
+        description: Commits in the trailing 90 days.
+        data_tests: [not_null]
+      - name: pr_merge_rate
+        description: Share of PRs opened in the trailing 365 days that were merged.
+        data_tests: [not_null]
+      - name: issue_close_rate
+        description: Share of issues opened in the trailing 365 days that are closed.
+        data_tests: [not_null]
+      - name: days_since_release
+        description: Days since the latest release; null when the repo has never released.
+      - name: stars
+        description: Current stargazer count.
+        data_tests: [not_null]
+
   - name: int_contributor_activity
     description: >
       Tidy contributor activity event stream at username grain - one row per discrete

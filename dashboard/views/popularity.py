@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from lib import health, queries
+from lib import queries
 from views import _components as c
 
 _COMPONENT_COLS = [
@@ -27,7 +27,7 @@ def render() -> None:
         "reference targets: a weighted blend of recent commit activity (30%), PR merge "
         "rate (20%), issue close rate (20%), release recency (15%), and stars (15%)."
     )
-    scored = health.compute_health(queries.health_components(conn, repos))
+    scored = queries.repository_health(conn, repos)
     st.bar_chart(scored, x="repository_name", y="health_score")
     st.dataframe(scored[_COMPONENT_COLS], hide_index=True, width="stretch")
 

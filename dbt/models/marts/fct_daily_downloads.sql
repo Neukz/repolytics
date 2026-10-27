@@ -2,12 +2,6 @@
 -- through the `projects` seed (package -> repo) and the SCD2 join; nullable for
 -- unmapped packages.
 
-{{
-    config(
-        materialized='table',
-    )
-}}
-
 with downloads as (
     select * from {{ ref('stg_pypi__downloads') }}
 )

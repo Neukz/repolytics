@@ -9,8 +9,20 @@ models:
         data_tests: [not_null, unique]
       - name: repository_name
         data_tests: [not_null]
+      - name: _dlt_id
+        description: dlt row identifier; parent key for the repositories__topics child rows.
+        data_tests: [not_null, unique]
       - name: _dlt_load_id
         description: dlt load identifier; used to resolve the snapshot's load timestamp from _dlt_loads.
+
+  - name: stg_github__repository_topics
+    description: One row per repository topic, flattened from the dlt child table.
+    columns:
+      - name: _dlt_parent_id
+        description: dlt parent key; resolves to stg_github__repositories._dlt_id.
+        data_tests: [not_null]
+      - name: topic
+        data_tests: [not_null]
 
   - name: stg_github__commits
     description: One cleaned row per non-merge commit.
@@ -41,6 +53,9 @@ models:
           - accepted_values:
               arguments:
                 values: [open, closed]
+      - name: _dlt_id
+        description: dlt row identifier; parent key for the pull_requests__labels child rows.
+        data_tests: [not_null, unique]
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
@@ -61,6 +76,9 @@ models:
           - accepted_values:
               arguments:
                 values: [open, closed]
+      - name: _dlt_id
+        description: dlt row identifier; parent key for the issues__labels child rows.
+        data_tests: [not_null, unique]
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
@@ -75,13 +93,19 @@ models:
         data_tests: [not_null]
 
   - name: stg_github__issue_labels
-    description: One row per (issue, label), flattened from the dlt child table.
+    description: One row per issue label assignment, flattened from the dlt child table.
     columns:
+      - name: _dlt_parent_id
+        description: dlt parent key; resolves to stg_github__issues._dlt_id.
+        data_tests: [not_null]
       - name: label_name
         data_tests: [not_null]
 
   - name: stg_github__pr_labels
-    description: One row per (pull request, label), flattened from the dlt child table.
+    description: One row per pull-request label assignment, flattened from the dlt child table.
     columns:
+      - name: _dlt_parent_id
+        description: dlt parent key; resolves to stg_github__pull_requests._dlt_id.
+        data_tests: [not_null]
       - name: label_name
         data_tests: [not_null]
