@@ -82,7 +82,7 @@ def repo_snapshot(conn: duckdb.DuckDBPyConnection, repos: list[str]) -> pd.DataF
     ),
     topics as (
         select repository_key, string_agg(topic, ', ' order by topic) as topics
-        from marts.bridge_repository_topics
+        from marts.dim_repository_topics
         group by repository_key
     )
     select

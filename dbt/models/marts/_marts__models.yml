@@ -379,10 +379,12 @@ models:
                 to: ref('dim_labels')
                 field: label_key
 
-  - name: bridge_repository_topics
+  - name: dim_repository_topics
     description: >
-      Bridge for the repository<->topic many-to-many. Grain - one row per
-      (repository, topic). GitHub exposes only current topics, so rows attach to the
+      Multi-valued topics on the current repository version. Grain - one row per
+      (repository, topic). A topic has no attributes beyond its name, so there is no
+      dim_topics; this is a 1:N expansion of a repository attribute, not a
+      many-to-many bridge. GitHub exposes only current topics, so rows attach to the
       current dim_repositories version.
     data_tests:
       - dbt_utils.unique_combination_of_columns:

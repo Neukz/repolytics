@@ -20,7 +20,7 @@ exposures:
       - ref('fct_repository_health')
       - ref('fct_contributor_activity_monthly')
       - ref('bridge_issue_labels')
-      - ref('bridge_repository_topics')
+      - ref('dim_repository_topics')
       - ref('dim_repositories')
       - ref('dim_contributors')
       - ref('dim_labels')
