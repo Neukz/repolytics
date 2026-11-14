@@ -77,7 +77,7 @@ repolytics/
 
 The three dbt layers have strict, non-overlapping jobs. **Staging** is one-to-one with each source table &ndash; rename, cast, filter, nothing else; dlt child tables (topics, labels) are flattened but left keyed on the dlt parent id. **Intermediate** owns the reassembly: the parent/child rejoins, the mutable-name-to-immutable-id resolution behind the SCD2 join, the contributor event stream shared by the dimension and the monthly fact, and the health-score inputs. **Marts** is the dimensional model the dashboard reads.
 
-The marts are a **fact constellation (galaxy schema)** &ndash; multiple fact tables sharing conformed dimensions. `dim_repositories`, `dim_contributors`, and `dim_dates` are the conformed spine: `dim_dates` joins every fact, `dim_repositories` every fact (nullable only for unmapped PyPI downloads), and `dim_contributors` the contributor-grained facts (commits, PRs, issues, monthly activity); `dim_labels` sits apart, reached only through the `bridge_issue_labels` many-to-many bridge, and `bridge_repository_topics` resolves the repository-to-topic many-to-many.
+The marts are a **fact constellation (galaxy schema)** &ndash; multiple fact tables sharing conformed dimensions. `dim_repositories`, `dim_contributors`, and `dim_dates` are the conformed spine: `dim_dates` joins every fact, `dim_repositories` every fact (nullable only for unmapped PyPI downloads), and `dim_contributors` the contributor-grained facts (commits, PRs, issues, monthly activity); `dim_labels` sits apart, reached only through the `bridge_issue_labels` many-to-many bridge. Topics are a multi-valued attribute of the current repository version (`dim_repository_topics`), not a second dimension.
 
 ```mermaid
 erDiagram
@@ -112,7 +112,7 @@ erDiagram
     bridge_issue_labels }o--|| fct_issues : ""
     bridge_issue_labels }o--|| dim_labels : ""
 
-    bridge_repository_topics }o--|| dim_repositories : ""
+    dim_repository_topics }o--|| dim_repositories : ""
 ```
 
 Crow's foot cardinality; a circle on the dimension side marks a nullable (optional) foreign key (e.g. commits with no GitHub-login author, or downloads for an unmapped package).
